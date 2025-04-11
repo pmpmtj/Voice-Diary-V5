@@ -1,0 +1,182 @@
+# Python specific
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.env
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDE specific (PyCharm, VSCode, etc)
+.idea/
+.vscode/
+*.swp
+*.swo
+.project
+.pydevproject
+.settings/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Testing
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+htmlcov/
+
+# Distribution / packaging
+*.manifest
+*.spec
+.Python
+MANIFEST
+
+# Logs and databases
+*.log
+*.sqlite
+*.db
+
+# OS generated files (Windows)
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Project specific
+config.json
+*.env
+.env.local
+.env.*.local
+
+# Documentation
+docs/_build/
+
+# Temporary folders
+tmp_folder/
+
+# Coverage reports
+.coverage
+*/.coverage
+*/tests/coverage/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE files
+.idea/
+.vscode/
+
+# Logs
+*.log
+credentials/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+tests/test_data/logs/
+tests/test_data/credentials/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Voice Diary specific
+logs/
+credentials/
+*.log
+*.pickle

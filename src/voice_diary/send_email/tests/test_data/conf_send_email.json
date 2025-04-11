@@ -1,0 +1,49 @@
+{
+  "version": "1.0.0",
+  "_description": "Gmail API Email Sender test configuration",
+  "send_email": true,
+  "validate_email": true,
+  "api": {
+    "_description": "Gmail API configuration and OAuth 2.0 scopes",
+    "scopes": [
+      "https://www.googleapis.com/auth/gmail.send",
+      "https://www.googleapis.com/auth/gmail.readonly"
+    ]
+  },
+  "auth": {
+    "_description": "Authentication configuration for Gmail API access",
+    "credentials_file": "credentials_gmail.json",
+    "token_file": "token_gmail.pickle",
+    "token_dir": "credentials"
+  },
+  "email": {
+    "_description": "Email content configuration including recipient, subject and message",
+    "to": "test@example.com",
+    "subject": "Test Email Subject",
+    "message": "Test Email Message",
+    "default_message": "Default Test Message",
+    "attachment": null
+  },
+  "logging": {
+    "_description": "Logging configuration for tests",
+    "file": {
+      "level": "INFO",
+      "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+      "filename": "test_send_email.log",
+      "max_size_bytes": 1048576,
+      "backup_count": 3,
+      "encoding": "utf-8"
+    },
+    "console": {
+      "level": "INFO",
+      "format": "%(asctime)s - %(levelname)s - %(message)s"
+    },
+    "logs_dir": "logs",
+    "validate_format": true
+  },
+  "testing": {
+    "_description": "Testing configuration for dry runs without sending actual emails",
+    "dry_run": true,
+    "mock_responses": true
+  }
+} 

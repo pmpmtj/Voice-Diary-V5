@@ -1,0 +1,40 @@
+{
+  "version": "1.0.0",
+  "send_email": true,
+  "validate_email": true,
+  "api": {
+    "scopes": [
+      "https://www.googleapis.com/auth/gmail.send",
+      "https://www.googleapis.com/auth/gmail.compose",
+      "https://www.googleapis.com/auth/gmail.modify",
+      "https://mail.google.com/"
+    ]
+  },
+  "auth": {
+    "credentials_file": "credentials_gmail.json",
+    "token_file": "token_gmail.pickle",
+    "credentials_path": "credentials",
+    "port": 0
+  },
+  "email": {
+    "to": "pmpmtj@hotmail.com",
+    "subject": "Voice Diary Notification",
+    "message": "=== THIS IS A TEST MESSAGE ===",
+    "default_message": "=== THIS IS A TEST MESSAGE ==="
+  },
+  "logging": {
+    "file": {
+      "level": "INFO",
+      "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+      "filename": "send_email.log",
+      "max_size_bytes": 1048576,
+      "backup_count": 3,
+      "encoding": "utf-8"
+    },
+    "console": {
+      "level": "INFO",
+      "format": "%(asctime)s - %(levelname)s - %(message)s"
+    },
+    "logs_dir": "logs"
+  }
+}

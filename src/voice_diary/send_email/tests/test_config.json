@@ -1,0 +1,13 @@
+{
+    "test_paths": {
+        "unit_tests_dir": "unit",
+        "coverage": {
+            "module_path": "voice_diary.send_email"
+        },
+        "test_data": {
+            "dir": "test_data",
+            "credentials_dir": "credentials",
+            "logs_dir": "logs"
+        }
+    }
+} 

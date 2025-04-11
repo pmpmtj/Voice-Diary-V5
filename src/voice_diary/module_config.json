@@ -1,0 +1,37 @@
+{
+    "logging": {
+        "_description": "Centralized logging configuration for all Voice Diary modules",
+        "file": {
+            "_description": "File-based logging settings including rotation and formatting",
+            "level": "INFO",
+            "format": "%(asctime)s - %(name)s - %(levelname)s - [%(module)s:%(lineno)d] - %(message)s",
+            "date_format": "%Y-%m-%d %H:%M:%S",
+            "log_filename": "voice_diary.log",
+            "max_size_bytes": 1048576,
+            "backup_count": 5,
+            "encoding": "utf-8"
+        },
+        "console": {
+            "_description": "Console (terminal) logging configuration",
+            "level": "INFO",
+            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            "date_format": "%H:%M:%S"
+        },
+        "modules": {
+            "_description": "Module-specific logging configurations",
+            "download_audio": {
+                "level": "INFO",
+                "log_filename": "download_audio.log"
+            },
+            "transcription": {
+                "level": "INFO",
+                "log_filename": "transcription.log"
+            },
+            "default": {
+                "level": "INFO",
+                "log_filename": "module.log"
+            }
+        },
+        "validate_format": true
+    }
+}

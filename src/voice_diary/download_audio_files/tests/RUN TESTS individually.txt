@@ -1,0 +1,7 @@
+python -m pytest src/voice_diary/download_audio_files/tests/unit/test_config_functions.py
+
+python -m pytest src/voice_diary/download_audio_files/tests/unit/test_config_functions.py::TestConfigFunctions
+
+python -m pytest src/voice_diary/download_audio_files/tests/unit/test_config_functions.py::TestConfigFunctions::test_load_config_primary_path
+
+python -m pytest src/voice_diary/download_audio_files/tests -k "retry"

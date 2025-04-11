@@ -1,0 +1,1 @@
+python -m pytest src/voice_diary/send_email/tests/unit
