@@ -32,6 +32,10 @@
                 "log_filename": "summarize_day.log",
                 "log_filename2": "openai_usage.log"
             },
+            "vd_scheduler": {
+                "level": "INFO",
+                "log_filename": "vd_scheduler.log"
+            },
             "default": {
                 "level": "INFO",
                 "log_filename": "module.log"
