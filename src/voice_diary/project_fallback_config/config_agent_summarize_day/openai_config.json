@@ -8,10 +8,10 @@
     "frequency_penalty": 0.0,
     "presence_penalty": 0.0,
     "save_usage_stats": true,
-    "thread_id": "thread_4vLqPn5lpO3u2euhD0GA4QTj",
-    "thread_created_at": "2025-04-12T14:17:36.130872",
+    "thread_id": "",
+    "thread_created_at": "",
     "thread_retention_days": 90,
-    "assistant_id": "asst_FO4fC7vWWe9pXtuB8V3sH87P",
+    "assistant_id": "",
     "tools": [
       {
         "type": "file_search"
