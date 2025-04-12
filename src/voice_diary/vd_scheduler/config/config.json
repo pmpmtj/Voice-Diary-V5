@@ -1,0 +1,23 @@
+{
+  "version": "1.0.0",
+  "scheduler": {
+    "runs_per_day": 12,
+    "daily_task_hour": 15,
+    "daily_task_minute": 55,
+    "description": "Configuration for Voice Diary scheduler"
+  },
+  "logging": {
+    "log_level": "INFO",
+    "log_rotation_days": 7,
+    "log_to_console": true
+  },
+  "pipeline": {
+    "enable_notifications": false,
+    "retry_on_failure": true,
+    "max_retries": 3
+  },
+  "paths": {
+    "output_directory": "output",
+    "archive_directory": "archive"
+  }
+}

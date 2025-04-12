@@ -73,7 +73,6 @@ $RECYCLE.BIN/
 *.lnk
 
 # Project specific
-config.json
 *.env
 .env.local
 .env.*.local

@@ -1,0 +1,51 @@
+{
+    "version": "1.0.0",
+    "api": {
+        "_description": "Google Drive API configuration and OAuth 2.0 scopes",
+        "scopes": [
+            "https://www.googleapis.com/auth/drive"
+        ],
+        "retry": {
+            "max_retries": 3,
+            "retry_delay": 2
+        }
+    },
+    "auth": {
+        "_description": "Authentication configuration for Google Drive access",
+        "credentials_file": "credentials.json",
+        "token_file": "gdrive_token.pickle",
+        "credentials_path": "credentials",
+        "fallback_config_path": "src/voice_diary/project_fallback_config/config_download_audio_files",
+        "fallback_config_filename": "config_download_audio_files.json"
+    },
+    "folders": {
+        "_description": "Configuration for Google Drive folders to process",
+        "target_folders": [
+            "a-daily-log",
+            "root"
+        ]
+    },
+    "audio_file_types": {
+        "_description": "Supported audio file extensions for processing",
+        "include": [
+            ".mp3",
+            ".wav",
+            ".m4a",
+            ".flac",
+            ".aac",
+            ".ogg",
+            ".wma"
+        ]
+    },
+    "download": {
+        "_description": "Download behavior settings including timestamp configuration",
+        "add_timestamps": true,
+        "timestamp_format": "%Y%m%d_%H%M%S_%f",
+        "dry_run": false,
+        "delete_after_download": true
+    },
+    "downloads_path": {
+        "_description": "Configuration for download directory location",
+        "downloads_dir": "downloaded"
+    }
+}
