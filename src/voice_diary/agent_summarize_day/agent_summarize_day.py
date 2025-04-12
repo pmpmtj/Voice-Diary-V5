@@ -9,7 +9,6 @@ and save to a text file.
 
 import json
 import logging
-import logging.handlers
 import os
 import sys
 import yaml
@@ -19,35 +18,34 @@ from pathlib import Path
 from openai import OpenAI
 
 from voice_diary.db_utils.db_manager import get_transcriptions_by_date_range, save_day_summary, check_summary_exists
+from voice_diary.logger_utils.logger_utils import setup_logger, ENCODING
 
 # Initialize paths - handling both frozen (PyInstaller) and regular Python execution
 if getattr(sys, 'frozen', False):
     # Running as compiled executable
-    SCRIPT_DIR = Path(sys._MEIPASS)
+    MODULE_DIR = Path(sys._MEIPASS)
 else:
     # Running as script
-    SCRIPT_DIR = Path(__file__).parent.absolute()
+    MODULE_DIR = Path(__file__).parent.absolute()
 
 # Project root for path calculations
-PROJECT_ROOT = SCRIPT_DIR.parent
+PROJECT_ROOT = MODULE_DIR.parent
 
 # Configuration paths
-CONFIG_DIR = PROJECT_ROOT / "project_fallback_configs" / "config_agent_summarize_day"
+CONFIG_DIR = PROJECT_ROOT / "project_fallback_config" / "config_agent_summarize_day"
 CONFIG_PATH = CONFIG_DIR / "agent_summarize_day_config.json"
 OPENAI_CONFIG_PATH = CONFIG_DIR / "openai_config.json"
 PROMPTS_PATH = CONFIG_DIR / "prompts.yaml"
-LOG_DIR = SCRIPT_DIR / "log"
 
-# Create log directory if it doesn't exist
-LOG_DIR.mkdir(parents=True, exist_ok=True)
-
-# Initialize logger
-logger = logging.getLogger("summarize_day")
+# Initialize logger using centralized logger system
+logger = setup_logger("agent_summarize_day")
+# Create a separate logger for OpenAI usage stats
+openai_logger = logging.getLogger("voice_diary.agent_summarize_day.openai_usage")
 
 def load_config():
     """Load configuration from JSON file"""
     try:
-        with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+        with open(CONFIG_PATH, 'r', encoding=ENCODING) as f:
             return json.load(f)
     except Exception as e:
         logger.error(f"Error loading configuration: {str(e)}")
@@ -56,7 +54,7 @@ def load_config():
 def load_openai_config():
     """Load OpenAI configuration from JSON file"""
     try:
-        with open(OPENAI_CONFIG_PATH, 'r', encoding='utf-8') as f:
+        with open(OPENAI_CONFIG_PATH, 'r', encoding=ENCODING) as f:
             return json.load(f)
     except Exception as e:
         logger.error(f"Error loading OpenAI configuration: {str(e)}")
@@ -65,69 +63,12 @@ def load_openai_config():
 def load_prompts():
     """Load prompt templates from YAML file"""
     try:
-        with open(PROMPTS_PATH, 'r', encoding='utf-8') as f:
+        with open(PROMPTS_PATH, 'r', encoding=ENCODING) as f:
             prompts_data = yaml.safe_load(f)
             return prompts_data.get('prompts', {})
     except Exception as e:
         logger.error(f"Error loading prompt templates: {str(e)}")
         sys.exit(1)
-
-def setup_logging(config):
-    """Setup logging based on configuration"""
-    log_config = config.get("logging", {})
-    log_level = getattr(logging, log_config.get("log_level", "INFO"))
-    
-    logger.setLevel(log_level)
-    
-    # Set up console handler
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(log_level)
-    console_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    console_handler.setFormatter(console_formatter)
-    logger.addHandler(console_handler)
-    
-    # Set up file handler with rotation
-    log_file = log_config.get("summarize_day_log_file", "summarize_day.log")
-    max_bytes = log_config.get("summarize_day_max_size_bytes", 1048576)  # 1MB default
-    backup_count = log_config.get("summarize_day_backup_count", 3)
-    
-    file_handler = logging.handlers.RotatingFileHandler(
-        LOG_DIR / log_file,
-        maxBytes=max_bytes,
-        backupCount=backup_count
-    )
-    file_handler.setLevel(log_level)
-    file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    file_handler.setFormatter(file_formatter)
-    logger.addHandler(file_handler)
-    
-    # Set up OpenAI usage logger with rotation if configured
-    openai_config = load_openai_config()
-    if 'logging' in openai_config and 'openai_usage_log_file' in openai_config['logging']:
-        openai_logger = logging.getLogger('openai_usage')
-        openai_logger.setLevel(logging.INFO)
-        
-        # Clear any existing handlers for the openai logger
-        if openai_logger.handlers:
-            openai_logger.handlers.clear()
-        
-        # Prevent propagation to root logger to avoid duplicate entries
-        openai_logger.propagate = False
-        
-        openai_log_config = openai_config['logging']
-        openai_log_file = LOG_DIR / openai_log_config['openai_usage_log_file']
-        openai_handler = logging.handlers.RotatingFileHandler(
-            openai_log_file,
-            maxBytes=openai_log_config.get('openai_usage_max_size_bytes', 1048576),  # Default 1MB
-            backupCount=openai_log_config.get('openai_usage_backup_count', 3)        # Default 3 backups
-        )
-        
-        # Simple formatter for OpenAI usage log (just the message)
-        openai_formatter = logging.Formatter('%(message)s')
-        openai_handler.setFormatter(openai_formatter)
-        openai_logger.addHandler(openai_handler)
-    
-    logger.info("Logging configured successfully")
 
 def process_with_openai_assistant(transcriptions, prompt_template, openai_config, prompts=None):
     """Process the transcriptions with OpenAI Assistants API using the prompt template."""
@@ -180,7 +121,7 @@ def process_with_openai_assistant(transcriptions, prompt_template, openai_config
             
             # Add the assistant_id to the config for future use
             config['assistant_id'] = assistant_id
-            with open(OPENAI_CONFIG_PATH, 'w', encoding='utf-8') as f:
+            with open(OPENAI_CONFIG_PATH, 'w', encoding=ENCODING) as f:
                 json.dump(openai_config, f, indent=2)
             
             logger.info(f"Assistant created with ID: {assistant_id}")
@@ -196,7 +137,7 @@ def process_with_openai_assistant(transcriptions, prompt_template, openai_config
                     # Remove the invalid assistant_id from config
                     logger.info("Removing invalid assistant_id from config")
                     config.pop('assistant_id', None)
-                    with open(OPENAI_CONFIG_PATH, 'w', encoding='utf-8') as f:
+                    with open(OPENAI_CONFIG_PATH, 'w', encoding=ENCODING) as f:
                         json.dump(openai_config, f, indent=2)
                     
                     # Restart the process (recursive call after fixing config)
@@ -234,7 +175,7 @@ def process_with_openai_assistant(transcriptions, prompt_template, openai_config
                     config.pop('thread_id', None)
                     if 'thread_created_at' in config:
                         config.pop('thread_created_at', None)
-                    with open(OPENAI_CONFIG_PATH, 'w', encoding='utf-8') as f:
+                    with open(OPENAI_CONFIG_PATH, 'w', encoding=ENCODING) as f:
                         json.dump(openai_config, f, indent=2)
                     
                     # Continue with a new thread
@@ -254,7 +195,7 @@ def process_with_openai_assistant(transcriptions, prompt_template, openai_config
             config['thread_id'] = thread_id
             # Store thread creation time
             config['thread_created_at'] = datetime.now().isoformat()
-            with open(OPENAI_CONFIG_PATH, 'w', encoding='utf-8') as f:
+            with open(OPENAI_CONFIG_PATH, 'w', encoding=ENCODING) as f:
                 json.dump(openai_config, f, indent=2)
             
             logger.info(f"Thread created with ID: {thread_id}")
@@ -323,7 +264,6 @@ def process_with_openai_assistant(transcriptions, prompt_template, openai_config
                                        f"Output: {usage.completion_tokens if hasattr(usage, 'completion_tokens') else 0} | " \
                                        f"Total: {usage.total_tokens if hasattr(usage, 'total_tokens') else 0}"
                             
-                            openai_logger = logging.getLogger('openai_usage')
                             openai_logger.info(usage_log)
                         except Exception as e:
                             logger.warning(f"Error logging usage statistics: {e}")
@@ -340,7 +280,7 @@ def process_with_openai_assistant(transcriptions, prompt_template, openai_config
                 # Remove the invalid assistant_id from config
                 logger.info("Removing invalid assistant_id from config")
                 config.pop('assistant_id', None)
-                with open(OPENAI_CONFIG_PATH, 'w', encoding='utf-8') as f:
+                with open(OPENAI_CONFIG_PATH, 'w', encoding=ENCODING) as f:
                     json.dump(openai_config, f, indent=2)
                 
                 # Restart the process (recursive call after fixing config)
@@ -520,7 +460,6 @@ def summarize_day():
     and writes the result to file and database.
     """
     config = load_config()
-    setup_logging(config)
     
     logger.info("Starting summarize_day process")
     
@@ -612,11 +551,11 @@ def summarize_day():
         # Create the output path with timestamp prefix
         output_path_with_timestamp = str(Path(output_path).parent / f"{timestamp_prefix}{Path(output_path).name}")
         
-        with open(output_path_with_timestamp, 'w', encoding='utf-8') as f:
+        with open(output_path_with_timestamp, 'w', encoding=ENCODING) as f:
             f.write(final_content)
         
         # Also write to the original path to maintain existing functionality
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(output_path, 'w', encoding=ENCODING) as f:
             f.write(final_content)
         
         logger.info(f"Successfully wrote summarized content to {output_path}")

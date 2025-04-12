@@ -27,6 +27,11 @@
                 "level": "INFO",
                 "log_filename": "transcription.log"
             },
+            "agent_summarize_day": {
+                "level": "INFO",
+                "log_filename": "summarize_day.log",
+                "log_filename2": "openai_usage.log"
+            },
             "default": {
                 "level": "INFO",
                 "log_filename": "module.log"
