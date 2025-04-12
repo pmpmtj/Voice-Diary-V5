@@ -21,7 +21,7 @@ try:
 except ImportError:
     OPENAI_AVAILABLE = False
     
-from voice_diary.transcribe_raw_audio.logger_setup_handler import setup_logger, ENCODING, SCRIPT_DIR
+from voice_diary.logger_utils.logger_utils import setup_logger, ENCODING
 
 # Try to import database utilities
 try:
@@ -30,6 +30,14 @@ try:
 except ImportError:
     DB_UTILS_AVAILABLE = False
 
+# Initialize module directory path - handling both frozen (PyInstaller) and regular Python execution
+if getattr(sys, 'frozen', False):
+    # Running as compiled executable
+    MODULE_DIR = Path(sys._MEIPASS)
+else:
+    # Running as script
+    MODULE_DIR = Path(__file__).parent.absolute()
+
 # Configurable fallback paths
 DEFAULT_FALLBACK_CONFIG_PATH = "src/voice_diary/project_fallback_config/config_transcribe_raw_audio"
 DEFAULT_FALLBACK_CONFIG_FILENAME = "config_transcribe_raw_audio.json"
@@ -37,15 +45,15 @@ DEFAULT_FALLBACK_CONFIG_FILENAME = "config_transcribe_raw_audio.json"
 # Set up logger
 logger = setup_logger("transcribe_raw_audio")
 
-logger.info(f"SCRIPT_DIR: {SCRIPT_DIR}")
+logger.info(f"MODULE_DIR: {MODULE_DIR}")
 
 def load_config(fallback_config_path: Optional[str] = None, 
                 fallback_config_filename: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Load the configuration from the JSON config file following a specific order:
-    1. Look in SCRIPT_DIR/config for config.json (hardcoded directory name and filename)
+    1. Look in MODULE_DIR/config for config.json (hardcoded directory name and filename)
     2. Look in fallback_config_path for fallback_config_filename (configurable)
-    3. Fallback to SCRIPT_DIR/config (ensure directory exists and return None)
+    3. Fallback to MODULE_DIR/config (ensure directory exists and return None)
     
     Args:
         fallback_config_path: Optional path to the fallback config directory
@@ -61,8 +69,8 @@ def load_config(fallback_config_path: Optional[str] = None,
     fallback_path = DEFAULT_FALLBACK_CONFIG_PATH
     fallback_filename = DEFAULT_FALLBACK_CONFIG_FILENAME
     
-    # 1. Look in SCRIPT_DIR/config for config.json (hardcoded directory name and filename)
-    PRIMARY_CONFIG_DIR = SCRIPT_DIR / "config"  # Hardcoded directory name
+    # 1. Look in MODULE_DIR/config for config.json (hardcoded directory name and filename)
+    PRIMARY_CONFIG_DIR = MODULE_DIR / "config"  # Hardcoded directory name
     PRIMARY_CONFIG_FILE = PRIMARY_CONFIG_DIR / "config.json"  # Hardcoded filename
     
     if PRIMARY_CONFIG_DIR.exists() and PRIMARY_CONFIG_FILE.exists():
@@ -85,7 +93,7 @@ def load_config(fallback_config_path: Optional[str] = None,
             logger.error(f"Error parsing fallback config file: {e.msg}")
             raise json.JSONDecodeError(f"Error parsing fallback config file: {e.msg}", e.doc, e.pos)
     
-    # 3. Fallback to SCRIPT_DIR/config - ensure directory exists and return None
+    # 3. Fallback to MODULE_DIR/config - ensure directory exists and return None
     if not PRIMARY_CONFIG_DIR.exists():
         os.makedirs(PRIMARY_CONFIG_DIR, exist_ok=True)
         logger.info(f"Created primary config directory at: {PRIMARY_CONFIG_DIR}")
@@ -263,18 +271,18 @@ def get_downloads_dir(config):
         if not downloads_dir:
             # Check if we can find it from download_audio_files module
             try:
-                download_audio_module_path = SCRIPT_DIR.parent / "download_audio_files"
+                download_audio_module_path = MODULE_DIR.parent / "download_audio_files"
                 if download_audio_module_path.exists():
                     downloads_dir = str(download_audio_module_path / "downloaded")
                     logger.info(f"Using downloads directory from download_audio_files module: {downloads_dir}")
                 else:
                     # Fallback to default location
-                    downloads_dir = str(SCRIPT_DIR.parent / "downloaded")
+                    downloads_dir = str(MODULE_DIR.parent / "downloaded")
                     logger.warning(f"Downloads directory not specified in config, using default: {downloads_dir}")
             except Exception as e:
                 logger.warning(f"Error finding download_audio_files module: {str(e)}")
                 # Fallback to default location
-                downloads_dir = str(SCRIPT_DIR.parent / "downloaded")
+                downloads_dir = str(MODULE_DIR.parent / "downloaded")
                 logger.warning(f"Downloads directory not specified in config, using default: {downloads_dir}")
             
         # Ensure the path exists
@@ -287,7 +295,7 @@ def get_downloads_dir(config):
     except Exception as e:
         logger.error(f"Error getting downloads directory: {str(e)}")
         # Return a default path
-        default_path = str(SCRIPT_DIR.parent / "downloaded")
+        default_path = str(MODULE_DIR.parent / "downloaded")
         return default_path
 
 def get_transcription_model(config):
@@ -604,22 +612,22 @@ def ensure_env_file_exists():
     """
     try:
         # Look for .env file in the current directory
-        local_env_path = SCRIPT_DIR / '.env'
+        local_env_path = MODULE_DIR / '.env'
         
         # If not found, try parent directory
         if not local_env_path.exists():
-            local_env_path = SCRIPT_DIR.parent / '.env'
+            local_env_path = MODULE_DIR.parent / '.env'
             
             # If still not found, try one level up
             if not local_env_path.exists():
-                local_env_path = SCRIPT_DIR.parent.parent / '.env'
+                local_env_path = MODULE_DIR.parent.parent / '.env'
         
         if local_env_path.exists():
             logger.info(f"Found .env file at {local_env_path}")
             return True
         else:
             # Create a default .env file
-            default_env_path = SCRIPT_DIR / '.env'
+            default_env_path = MODULE_DIR / '.env'
             with open(default_env_path, 'w', encoding='utf-8') as f:
                 f.write("DATABASE_URL=postgresql://postgres:password@localhost:5432/voice_diary\n")
                 f.write("OPENAI_API_KEY=your_openai_api_key\n")
@@ -739,7 +747,7 @@ def main():
             logger.error("Transcription process failed")
     else:
         logger.warning("No configuration found. Creating sample configuration...")
-        sample_config_path = SCRIPT_DIR / "config" / "config.json"  # Hardcoded directory name and filename
+        sample_config_path = MODULE_DIR / "config" / "config.json"  # Hardcoded directory name and filename
         config = create_sample_config(sample_config_path)
         logger.info("Please review and update the configuration as needed.")
         logger.info("Then run the script again to transcribe audio files.")

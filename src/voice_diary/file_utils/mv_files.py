@@ -16,10 +16,12 @@ from logging.handlers import RotatingFileHandler
 from typing import Dict, List, Tuple, Set, Optional, Union
 
 # Handle both frozen (PyInstaller) and regular Python execution
-SCRIPT_DIR = Path(sys._MEIPASS) if getattr(sys, 'frozen', False) else Path(__file__).resolve().parent
-
-# Project root is one level up from the file_utils directory
-PROJECT_ROOT = SCRIPT_DIR.parent
+if getattr(sys, 'frozen', False):
+    # Running as compiled executable
+    MODULE_DIR = Path(sys._MEIPASS)
+else:
+    # Running as script
+    MODULE_DIR = Path(__file__).parent.absolute()
 
 
 def load_config(config_path: Union[str, Path]) -> Dict:
@@ -47,15 +49,20 @@ def load_gdrive_config() -> Dict:
     Returns:
         Complete Google Drive configuration dictionary
     """
-    gdrive_config_path = PROJECT_ROOT / "project_fallback_configs" / "config_dwnload_files" / "dwnload_from_gdrive_conf.json"
+    # First try to find the config relative to the module
+    gdrive_config_paths = [
+        MODULE_DIR / "config" / "dwnload_from_gdrive_conf.json",
+        MODULE_DIR.parent / "project_fallback_configs" / "config_dwnload_files" / "dwnload_from_gdrive_conf.json",
+        MODULE_DIR.parent / "download_audio_files" / "config" / "dwnload_from_gdrive_conf.json"
+    ]
     
-    if not gdrive_config_path.exists():
-        raise FileNotFoundError(f"Google Drive config file not found at {gdrive_config_path}")
-        
-    with open(gdrive_config_path, 'r') as f:
-        gdrive_config = json.load(f)
+    for path in gdrive_config_paths:
+        if path.exists():
+            with open(path, 'r') as f:
+                gdrive_config = json.load(f)
+            return gdrive_config
     
-    return gdrive_config
+    raise FileNotFoundError(f"Google Drive config file not found in any of the expected locations: {[str(p) for p in gdrive_config_paths]}")
 
 
 def setup_logging(config: Dict) -> logging.Logger:
@@ -76,7 +83,7 @@ def setup_logging(config: Dict) -> logging.Logger:
     backup_count = log_config.get('backup_count', 3)
     
     # Create logs directory if it doesn't exist
-    log_dir = SCRIPT_DIR / 'logs'
+    log_dir = MODULE_DIR / 'logs'
     log_dir.mkdir(exist_ok=True)
     
     log_path = log_dir / log_file
@@ -264,8 +271,21 @@ def main():
     """
     Main function to execute when the script is run directly.
     """
-    # Determine the config file path relative to project root
-    config_path = PROJECT_ROOT / 'project_fallback_configs' / 'config_file_utils' / 'file_utils_config.json'
+    # Look for configuration files in several locations
+    config_paths = [
+        MODULE_DIR / 'config' / 'file_utils_config.json',
+        MODULE_DIR.parent / 'project_fallback_configs' / 'config_file_utils' / 'file_utils_config.json'
+    ]
+    
+    config_path = None
+    for path in config_paths:
+        if path.exists():
+            config_path = path
+            break
+    
+    if not config_path:
+        print(f"Error: Configuration file not found in any of the expected locations: {[str(p) for p in config_paths]}")
+        return 1
     
     try:
         # Load configuration
@@ -274,7 +294,7 @@ def main():
         # Setup logging
         logger = setup_logging(config)
         
-        logger.info("Starting file processing")
+        logger.info(f"Starting file processing using config from: {config_path}")
         
         # Process files
         files_processed, files_failed = process_files(config, logger)

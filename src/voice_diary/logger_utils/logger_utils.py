@@ -2,6 +2,7 @@
 import json
 import logging
 import sys
+import importlib
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -13,20 +14,15 @@ DEFAULT_CONFIG_FILE = "module_config.json"
 # Initialize paths - handling both frozen (PyInstaller) and regular Python execution
 if getattr(sys, 'frozen', False):
     # Running as compiled executable
-    SCRIPT_DIR = Path(sys._MEIPASS)
+    MODULE_DIR = Path(sys._MEIPASS)
 else:
     # Running as script
-    SCRIPT_DIR = Path(__file__).parent.absolute()
-
-# Define log directory
-LOGS_DIR = SCRIPT_DIR / "logs"
-
-# Parent directory where module_config.json is located
-PARENT_DIR = SCRIPT_DIR.parent
+    MODULE_DIR = Path(__file__).parent.absolute()
 
 def load_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
     """
     Load logging configuration from the specified path or default location.
+    Search for the config file in multiple locations for better flexibility.
     
     Args:
         config_path: Optional path to the config file
@@ -35,13 +31,23 @@ def load_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
         Dict containing the logging configuration
     """
     if config_path is None:
-        # Look for config in the parent directory first
-        parent_config_path = PARENT_DIR / DEFAULT_CONFIG_FILE
-        if parent_config_path.exists():
-            config_path = parent_config_path
-        else:
-            # Fall back to the script directory
-            config_path = SCRIPT_DIR / DEFAULT_CONFIG_FILE
+        # Try multiple possible locations in order of preference
+        possible_config_paths = [
+            MODULE_DIR / DEFAULT_CONFIG_FILE,  # In logger_utils directory
+            MODULE_DIR / "config" / DEFAULT_CONFIG_FILE,  # In logger_utils/config directory
+            MODULE_DIR / "config" / "config.json",  # In logger_utils/config as config.json
+            MODULE_DIR.parent / DEFAULT_CONFIG_FILE,  # In parent directory
+        ]
+        
+        # Use the first config file that exists
+        for path in possible_config_paths:
+            if path.exists():
+                config_path = path
+                break
+        
+        # If no config file found, default to the module directory
+        if config_path is None:
+            config_path = MODULE_DIR / DEFAULT_CONFIG_FILE
     
     try:
         with open(config_path, 'r', encoding=ENCODING) as f:
@@ -55,6 +61,37 @@ def load_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
                 "console": {"level": "INFO"}
             }
         }
+
+def get_module_dir(module_name: str) -> Path:
+    """
+    Get the directory of the specified module.
+    
+    Args:
+        module_name: Name of the module
+        
+    Returns:
+        Path to the module's directory
+    """
+    try:
+        # Try to get the module directory by importing it
+        module_parts = module_name.split('.')
+        
+        # First try with direct module path
+        try:
+            module = importlib.import_module(f"voice_diary.{module_name}")
+            return Path(module.__file__).parent
+        except (ModuleNotFoundError, AttributeError):
+            # If that fails, try to find the module directory by its name
+            # This handles cases where module_name is a subsystem name, not a direct module
+            for subdir in MODULE_DIR.iterdir():
+                if subdir.is_dir() and subdir.name == module_parts[0]:
+                    return subdir
+            
+            # If both approaches fail, return a subdirectory of MODULE_DIR with the module name
+            return MODULE_DIR / module_parts[0]
+    except Exception as e:
+        # Fallback to a subdirectory of MODULE_DIR with the module name
+        return MODULE_DIR / module_name
 
 def setup_logger(
     module_name: str,
@@ -76,8 +113,9 @@ def setup_logger(
     config = load_config(config_path)
     logging_config = config.get("logging", {})
     
-    # Set up log directory
-    logs_dir = Path(log_dir) if log_dir else LOGS_DIR
+    # Determine module directory and set up log directory within the module directory
+    module_dir = get_module_dir(module_name)
+    logs_dir = Path(log_dir) if log_dir else module_dir / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
     
     # Get module-specific settings
@@ -125,11 +163,6 @@ def setup_logger(
     
     return logger
 
-# Example usage in other scripts:
-if __name__ == "__main__":
-    # Test the logger
-    logger = setup_logger("test_module")
-    logger.debug("Debug message")
-    logger.info("Info message")
-    logger.warning("Warning message")
-    logger.error("Error message") 
+# Example usage in other modules:
+# from voice_diary.logger_utils import setup_logger
+# logger = setup_logger("your_module_name") 

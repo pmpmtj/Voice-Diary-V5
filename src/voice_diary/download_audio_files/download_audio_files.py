@@ -10,7 +10,7 @@ import pickle
 import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, Tuple
-from voice_diary.download_audio_files.logger_setup_handler import setup_logger, ENCODING, SCRIPT_DIR
+from voice_diary.logger_utils.logger_utils import setup_logger, ENCODING
 from voice_diary.download_audio_files.oauth_handler import OAuthCallbackHandler, run_local_server
 
 # Required Google libraries
@@ -25,6 +25,14 @@ try:
 except ImportError:
     GOOGLE_LIBS_AVAILABLE = False
 
+# Initialize module directory path - handling both frozen (PyInstaller) and regular Python execution
+if getattr(sys, 'frozen', False):
+    # Running as compiled executable
+    MODULE_DIR = Path(sys._MEIPASS)
+else:
+    # Running as script
+    MODULE_DIR = Path(__file__).parent.absolute()
+
 # Constants
 # Configurable fallback paths
 DEFAULT_FALLBACK_CONFIG_PATH = "src/voice_diary/project_fallback_config/config_download_audio_files"
@@ -38,15 +46,15 @@ DEFAULT_RETRY_DELAY = 2  # seconds
 # Set up logger
 logger = setup_logger("download_audio_files")
 
-logger.info(f"SCRIPT_DIR: {SCRIPT_DIR}")
+logger.info(f"MODULE_DIR: {MODULE_DIR}")
 
 def load_config(fallback_config_path: Optional[str] = None, 
                 fallback_config_filename: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     Load the configuration from the JSON config file following a specific order:
-    1. Look in SCRIPT_DIR/config for config.json (hardcoded directory name and filename)
+    1. Look in MODULE_DIR/config for config.json (hardcoded directory name and filename)
     2. Look in fallback_config_path for fallback_config_filename (configurable)
-    3. Fallback to SCRIPT_DIR/config (ensure directory exists and return None)
+    3. Fallback to MODULE_DIR/config (ensure directory exists and return None)
     
     Args:
         fallback_config_path: Optional path to the fallback config directory
@@ -62,8 +70,8 @@ def load_config(fallback_config_path: Optional[str] = None,
     fallback_path = fallback_config_path or DEFAULT_FALLBACK_CONFIG_PATH
     fallback_filename = fallback_config_filename or DEFAULT_FALLBACK_CONFIG_FILENAME
     
-    # 1. Look in SCRIPT_DIR/config for config.json (hardcoded directory name and filename)
-    PRIMARY_CONFIG_DIR = SCRIPT_DIR / "config"  # Hardcoded directory name
+    # 1. Look in MODULE_DIR/config for config.json (hardcoded directory name and filename)
+    PRIMARY_CONFIG_DIR = MODULE_DIR / "config"  # Hardcoded directory name
     PRIMARY_CONFIG_FILE = PRIMARY_CONFIG_DIR / "config.json"  # Hardcoded filename
     
     if PRIMARY_CONFIG_DIR.exists() and PRIMARY_CONFIG_FILE.exists():
@@ -86,7 +94,7 @@ def load_config(fallback_config_path: Optional[str] = None,
             logger.error(f"Error parsing fallback config file: {e.msg}")
             raise json.JSONDecodeError(f"Error parsing fallback config file: {e.msg}", e.doc, e.pos)
     
-    # 3. Fallback to SCRIPT_DIR/config - ensure directory exists and return None
+    # 3. Fallback to MODULE_DIR/config - ensure directory exists and return None
     if not PRIMARY_CONFIG_DIR.exists():
         os.makedirs(PRIMARY_CONFIG_DIR, exist_ok=True)
         logger.info(f"Created primary config directory at: {PRIMARY_CONFIG_DIR}")
@@ -132,7 +140,7 @@ def create_sample_config(config_path):
             "_description": "Authentication configuration for Google Drive access",
             "credentials_file": MODULE_CREDENTIALS_FILENAME,
             "token_file": "gdrive_token.pickle",
-            "credentials_path": "credentials",  # Use OS-agnostic path relative to SCRIPT_DIR
+            "credentials_path": "credentials",  # Use OS-agnostic path relative to MODULE_DIR
             "fallback_config_path": DEFAULT_FALLBACK_CONFIG_PATH,
             "fallback_config_filename": DEFAULT_FALLBACK_CONFIG_FILENAME
         },
@@ -325,9 +333,9 @@ def get_oauth_credentials(config: Dict[str, Any], credentials_file: Path) -> Opt
 def find_or_create_credentials(config: Optional[Dict[str, Any]] = None) -> Tuple[Optional[Path], Optional[Path]]:
     """
     Locate or create credentials file/folder following a specific order:
-    1. Look for credentials file in SCRIPT_DIR
+    1. Look for credentials file in MODULE_DIR
     2. Look at auth config using credentials_file and credentials_path from config
-    3. Ensure path exists and create a "credentials" folder in the SCRIPT_DIR if needed
+    3. Ensure path exists and create a "credentials" folder in the MODULE_DIR if needed
     4. If credentials file exists but token is missing/invalid, guide through OAuth flow
     
     Args:
@@ -347,8 +355,8 @@ def find_or_create_credentials(config: Optional[Dict[str, Any]] = None) -> Tuple
         if "credentials_file" in auth_config:
             credentials_filename = auth_config["credentials_file"]
     
-    # 1. Look for credentials file in SCRIPT_DIR
-    credentials_file = SCRIPT_DIR / credentials_filename
+    # 1. Look for credentials file in MODULE_DIR
+    credentials_file = MODULE_DIR / credentials_filename
     
     if credentials_file.exists():
         logger.info(f"Found credentials file at: {credentials_file}")
@@ -363,7 +371,7 @@ def find_or_create_credentials(config: Optional[Dict[str, Any]] = None) -> Tuple
             credentials_path = Path(auth_config["credentials_path"])
             # Check if path is relative or absolute
             if not credentials_path.is_absolute():
-                credentials_path = SCRIPT_DIR / credentials_path
+                credentials_path = MODULE_DIR / credentials_path
             fallback_credentials_file = credentials_path / credentials_filename
             
             if fallback_credentials_file.exists():
@@ -371,8 +379,8 @@ def find_or_create_credentials(config: Optional[Dict[str, Any]] = None) -> Tuple
                 token_file = get_oauth_credentials(config, fallback_credentials_file)
                 return fallback_credentials_file, token_file
     
-    # 3. Ensure path exists and create a "credentials" folder in the script_dir
-    credentials_dir = SCRIPT_DIR / "credentials"
+    # 3. Ensure path exists and create a "credentials" folder in the MODULE_DIR
+    credentials_dir = MODULE_DIR / "credentials"
     if not credentials_dir.exists():
         os.makedirs(credentials_dir, exist_ok=True)
         logger.info(f"Created credentials directory at: {credentials_dir}")
@@ -851,10 +859,10 @@ def main():
             else:
                 logger.warning("Authentication not completed. Please run the script again to authenticate.")
         else:
-            logger.warning(f"No credentials file found. Please place your credentials file in: {SCRIPT_DIR / 'credentials'}")
+            logger.warning(f"No credentials file found. Please place your credentials file in: {MODULE_DIR / 'credentials'}")
     else:
         logger.warning("No configuration found. Creating sample configuration...")
-        sample_config_path = SCRIPT_DIR / "config" / "config.json"  # Hardcoded directory name and filename
+        sample_config_path = MODULE_DIR / "config" / "config.json"  # Hardcoded directory name and filename
         config = create_sample_config(sample_config_path)
         logger.info("Please review and update the configuration as needed.")
     

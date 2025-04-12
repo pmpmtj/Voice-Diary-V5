@@ -37,16 +37,16 @@ from tqdm import tqdm
 # Initialize paths - handling both frozen (PyInstaller) and regular Python execution
 if getattr(sys, 'frozen', False):
     # Running as compiled executable
-    SCRIPT_DIR = Path(sys._MEIPASS)
+    MODULE_DIR = Path(sys._MEIPASS)
 else:
     # Running as script
-    SCRIPT_DIR = Path(__file__).parent.absolute()
+    MODULE_DIR = Path(__file__).parent.absolute()
 
 # Create a global logger that will be configured in setup_logging
 logger = logging.getLogger("voice_diary.email")
 
 # Define log directory relative to the script
-LOGS_DIR = SCRIPT_DIR / "logs"
+LOGS_DIR = MODULE_DIR / "logs"
 
 # Required Gmail API scopes
 REQUIRED_SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
@@ -86,7 +86,7 @@ def get_config_path() -> Optional[Path]:
         Path to config file if found, None otherwise
     """
     # Ensure config directory exists
-    config_dir = SCRIPT_DIR / "config"
+    config_dir = MODULE_DIR / "config"
     if not config_dir.exists():
         try:
             config_dir.mkdir(parents=True, exist_ok=True)
@@ -108,14 +108,14 @@ def get_config_path() -> Optional[Path]:
             return env_config
     
     # Check parent directory (project structure) as fallback
-    project_root = SCRIPT_DIR.parent
+    project_root = MODULE_DIR.parent
     project_config = project_root / "project_fallback_config" / "config_send_email" / "conf_send_email.json"
     if project_config.exists():
         logger.info(f"Using project-level config: {project_config}")
         return project_config
     
     # Default config in the module directory
-    default_config = SCRIPT_DIR / "conf_send_email.json"
+    default_config = MODULE_DIR / "conf_send_email.json"
     if default_config.exists():
         logger.info(f"Using default config: {default_config}")
         return default_config
@@ -417,13 +417,13 @@ def load_config() -> AppConfig:
             config_path = Path(CONFIG_FILE)
             
             # Check if it's the project-level config
-            project_root = SCRIPT_DIR.parent
+            project_root = MODULE_DIR.parent
             project_config_path = project_root / "project_fallback_config" / "config_send_email" / "conf_send_email.json"
             
             # If we're using the project config, create a local copy in the module config directory
             if str(config_path) == str(project_config_path):
                 # Create local config directory if it doesn't exist
-                local_config_dir = SCRIPT_DIR / "config"
+                local_config_dir = MODULE_DIR / "config"
                 try:
                     if not local_config_dir.exists():
                         local_config_dir.mkdir(parents=True, exist_ok=True)
@@ -453,8 +453,8 @@ def load_config() -> AppConfig:
             logger.error(error_msg)
             
             # Suggest configuration locations
-            module_config = SCRIPT_DIR / "config" / "conf_send_email.json"
-            default_module_config = SCRIPT_DIR / "conf_send_email.json"
+            module_config = MODULE_DIR / "config" / "conf_send_email.json"
+            default_module_config = MODULE_DIR / "conf_send_email.json"
             
             print(f"ERROR: {error_msg}")
             print("Please create a configuration file using the template below:")
@@ -469,7 +469,7 @@ def load_config() -> AppConfig:
             # Try to create a default config file in the module directory
             try:
                 # Ensure config directory exists
-                config_dir = SCRIPT_DIR / "config"
+                config_dir = MODULE_DIR / "config"
                 if not config_dir.exists():
                     config_dir.mkdir(parents=True, exist_ok=True)
                     logger.info(f"Created config directory: {config_dir}")
@@ -625,7 +625,7 @@ def setup_logging(config: LoggingConfig) -> logging.Logger:
         Configured logger
     """
     # Create logs directory using the configuration
-    logs_dir = SCRIPT_DIR / config.logs_dir
+    logs_dir = MODULE_DIR / config.logs_dir
     ensure_directory_exists(logs_dir, "logs directory")
     
     # Get logger by name - use a new logger instead of the global one to avoid duplicating handlers
@@ -731,11 +731,11 @@ def get_credentials_paths(config: AppConfig, logger: logging.Logger) -> tuple:
     Get credentials file paths with mobile/portable support.
     
     Lookup order:
-    1. Check module directory (script_dir/credentials)
+    1. Check module directory (module_dir/credentials)
     2. Check environment variable (EMAIL_CREDENTIALS_DIR)
     3. Check absolute path in config auth.credentials_path 
-    4. Check relative path in config auth.credentials_path (relative to SCRIPT_DIR)
-    5. Fallback to default location (script_dir/credentials)
+    4. Check relative path in config auth.credentials_path (relative to MODULE_DIR)
+    5. Fallback to default location (module_dir/credentials)
     
     Args:
         config: Application configuration
@@ -749,7 +749,7 @@ def get_credentials_paths(config: AppConfig, logger: logging.Logger) -> tuple:
     token_filename = config.auth.token_file
     
     # Make sure credentials directory exists first
-    module_creds_dir = SCRIPT_DIR / "credentials"
+    module_creds_dir = MODULE_DIR / "credentials"
     if not module_creds_dir.exists():
         try:
             module_creds_dir.mkdir(parents=True, exist_ok=True)
@@ -797,8 +797,8 @@ def get_credentials_paths(config: AppConfig, logger: logging.Logger) -> tuple:
                 logger.info(f"Using credentials from absolute path: {abs_creds_dir}")
                 return abs_creds_file, abs_token_file
         else:
-            # It's a relative path, make it relative to SCRIPT_DIR
-            rel_creds_dir = SCRIPT_DIR / Path(creds_path)
+            # It's a relative path, make it relative to MODULE_DIR
+            rel_creds_dir = MODULE_DIR / Path(creds_path)
             # Create directory if it doesn't exist
             if not rel_creds_dir.exists():
                 try:
@@ -820,7 +820,7 @@ def get_credentials_paths(config: AppConfig, logger: logging.Logger) -> tuple:
         if token_dir_path.is_absolute():
             token_dir = token_dir_path 
         else:
-            token_dir = SCRIPT_DIR / token_dir_path
+            token_dir = MODULE_DIR / token_dir_path
             
         # Ensure token directory exists
         try:
@@ -1430,10 +1430,10 @@ def main() -> bool:
         print("  --create-config [path]  Create a sample configuration file at the specified path")
         print("                          If no path is provided, creates config at the default location")
         print("\nConfiguration search paths (in order of priority):")
-        print(f"  1. {SCRIPT_DIR}/config/conf_send_email.json")
+        print(f"  1. {MODULE_DIR}/config/conf_send_email.json")
         print(f"  2. Environment variable EMAIL_SENDER_CONFIG")
-        print(f"  3. {SCRIPT_DIR.parent}/project_fallback_config/config_send_email/conf_send_email.json")
-        print(f"  4. {SCRIPT_DIR}/conf_send_email.json")
+        print(f"  3. {MODULE_DIR.parent}/project_fallback_config/config_send_email/conf_send_email.json")
+        print(f"  4. {MODULE_DIR}/conf_send_email.json")
         return True
     
     # Check if user wants to create a sample config
@@ -1443,7 +1443,7 @@ def main() -> bool:
             config_path = Path(sys.argv[2])
         else:
             # Use default location
-            config_path = SCRIPT_DIR / "config" / "conf_send_email.json"
+            config_path = MODULE_DIR / "config" / "conf_send_email.json"
             
         print(f"Creating sample configuration file at: {config_path}")
         create_sample_config(config_path)
