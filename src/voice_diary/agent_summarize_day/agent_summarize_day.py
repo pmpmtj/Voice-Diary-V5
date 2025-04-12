@@ -9,6 +9,7 @@ and save to a text file.
 
 import json
 import logging
+import logging.handlers
 import os
 import sys
 import yaml
@@ -18,7 +19,7 @@ from pathlib import Path
 from openai import OpenAI
 
 from voice_diary.db_utils.db_manager import get_transcriptions_by_date_range, save_day_summary, check_summary_exists
-from voice_diary.logger_utils.logger_utils import setup_logger, ENCODING
+from voice_diary.logger_utils.logger_utils import setup_logger, ENCODING, load_config as load_logger_config
 
 # Initialize paths - handling both frozen (PyInstaller) and regular Python execution
 if getattr(sys, 'frozen', False):
@@ -37,10 +38,39 @@ CONFIG_PATH = CONFIG_DIR / "agent_summarize_day_config.json"
 OPENAI_CONFIG_PATH = CONFIG_DIR / "openai_config.json"
 PROMPTS_PATH = CONFIG_DIR / "prompts.yaml"
 
-# Initialize logger using centralized logger system
+# Initialize main logger using centralized logger system
 logger = setup_logger("agent_summarize_day")
-# Create a separate logger for OpenAI usage stats
+
+# Create and configure a separate logger for OpenAI usage
 openai_logger = logging.getLogger("voice_diary.agent_summarize_day.openai_usage")
+openai_logger.setLevel(logging.INFO)
+# Prevent propagation to parent logger to avoid duplicate entries
+openai_logger.propagate = False
+
+# Set up log directory for OpenAI usage logs
+LOGS_DIR = MODULE_DIR / "logs"
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
+
+# Get module config for OpenAI usage log settings
+logger_config = load_logger_config()
+module_config = logger_config.get('logging', {}).get('modules', {}).get('agent_summarize_day', {})
+openai_log_filename = module_config.get('log_filename2', 'openai_usage.log')
+
+# Set up file handler for OpenAI usage logs
+openai_log_path = LOGS_DIR / openai_log_filename
+openai_handler = logging.handlers.RotatingFileHandler(
+    openai_log_path,
+    maxBytes=1048576,  # 1MB default
+    backupCount=5,     # 5 backup files default
+    encoding=ENCODING
+)
+
+# Simple formatter for OpenAI usage log (just the message)
+openai_formatter = logging.Formatter('%(message)s')
+openai_handler.setFormatter(openai_formatter)
+openai_logger.addHandler(openai_handler)
+
+logger.info(f"OpenAI usage log will be saved to: {openai_log_path}")
 
 def load_config():
     """Load configuration from JSON file"""
@@ -257,13 +287,13 @@ def process_with_openai_assistant(transcriptions, prompt_template, openai_config
                     # Log usage statistics if available
                     if config['save_usage_stats'] and hasattr(run_status, 'usage'):
                         usage = run_status.usage
-                        # Handle usage data correctly - usage is an object, not a dictionary
                         try:
                             usage_log = f"{datetime.now().isoformat()} | {config['model']} | " \
                                        f"Input: {usage.prompt_tokens if hasattr(usage, 'prompt_tokens') else 0} | " \
                                        f"Output: {usage.completion_tokens if hasattr(usage, 'completion_tokens') else 0} | " \
                                        f"Total: {usage.total_tokens if hasattr(usage, 'total_tokens') else 0}"
                             
+                            # Log to the dedicated OpenAI usage logger
                             openai_logger.info(usage_log)
                         except Exception as e:
                             logger.warning(f"Error logging usage statistics: {e}")
@@ -306,7 +336,6 @@ def format_transcriptions_for_llm(transcriptions):
         created_at = entry.get('created_at')
         content = entry.get('content', '')
         
-        # Remove reference to category_name since categories table no longer exists
         if created_at:
             date_str = created_at.strftime(date_format)
             time_str = created_at.strftime("%H:%M:%S")
@@ -486,7 +515,7 @@ def summarize_day():
     transcriptions = get_transcriptions_by_date_range(start_date, end_date)
     
     if not transcriptions:
-        logger.warning(f"No transcriptions found for the date range {start_date.strftime('%Y%m%d')} to {end_date.strftime('%Y%m%d')}")
+        logger.warning(f"No transcriptions found for the date range {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
         return False
     
     logger.info(f"Found {len(transcriptions)} transcriptions")
