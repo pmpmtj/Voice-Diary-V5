@@ -1,0 +1,9 @@
+{
+    "transcription": {
+        "model": "whisper-1",
+        "language": "en",
+        "prompt": "This is a voice diary entry. The speaker is talking about their day, thoughts, or feelings.",
+        "temperature": 0.0,
+        "response_format": "text"
+    }
+}

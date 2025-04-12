@@ -27,11 +27,25 @@ else:
     # Running as script
     SCRIPT_DIR = Path(__file__).parent.absolute()
 
-# Project root for path calculations
-PROJECT_ROOT = SCRIPT_DIR.parent
+# Create directories for application data
+DATA_DIR = SCRIPT_DIR / "data"
+DATA_DIR.mkdir(exist_ok=True)
 
-# Updated path to the configuration file
-CONFIG_DIR = PROJECT_ROOT / "project_modules_configs" / "config_app_scheduler"
+DOWNLOADS_DIR = DATA_DIR / "downloaded"
+DOWNLOADS_DIR.mkdir(exist_ok=True)
+
+PROCESSED_DIR = DATA_DIR / "processed"
+PROCESSED_DIR.mkdir(exist_ok=True)
+
+TRANSCRIPTIONS_DIR = DATA_DIR / "transcriptions"
+TRANSCRIPTIONS_DIR.mkdir(exist_ok=True)
+
+SUMMARIES_DIR = DATA_DIR / "summaries"
+SUMMARIES_DIR.mkdir(exist_ok=True)
+
+# Create a default config directory if it doesn't exist
+CONFIG_DIR = SCRIPT_DIR / "config"
+CONFIG_DIR.mkdir(exist_ok=True)
 CONFIG_FILE = CONFIG_DIR / "app_scheduler_config.json"
 STATE_FILE = SCRIPT_DIR / 'pipeline_state.json'
 LOG_DIR = SCRIPT_DIR / 'log'
@@ -44,9 +58,14 @@ logger = logging.getLogger(__name__)
 
 # === Config Handling ===
 def load_config():
-    if not CONFIG_FILE.exists():
-        print(f"Config file not found at: {CONFIG_FILE}")
-        sys.exit(1)
+    # First try to load from the script directory's config folder
+    if CONFIG_FILE.exists():
+        logger.info(f"Using configuration file at: {CONFIG_FILE}")
+    else:
+        # Create a default configuration
+        logger.info(f"Configuration file not found, creating default at: {CONFIG_FILE}")
+        create_default_config(CONFIG_FILE)
+    
     try:
         with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
             config = json.load(f)
@@ -54,8 +73,26 @@ def load_config():
             raise ValueError("Missing 'scheduler' section in config.json")
         return config
     except Exception as e:
-        print(f"Failed to load configuration: {e}")
+        logger.error(f"Failed to load configuration: {e}")
         sys.exit(1)
+
+def create_default_config(config_path):
+    """Create a default configuration file if none exists"""
+    default_config = {
+        "scheduler": {
+            "runs_per_day": 4,
+            "daily_task_hour": 23,
+            "daily_task_minute": 55
+        }
+    }
+    
+    try:
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(default_config, f, indent=4)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to create default configuration: {e}")
+        return False
 
 def validate_config(config):
     scheduler = config.get("scheduler", {})
@@ -114,8 +151,26 @@ def run_pipeline():
         # to prevent duplicate processing in future runs
         logger.info("Starting file organization to prevent duplication")
         try:
+            # Create a local mv_files configuration path
+            mv_files_config_path = SCRIPT_DIR / "config" / "file_utils_config.json"
+            if not mv_files_config_path.exists():
+                # Create directory if needed
+                mv_files_config_path.parent.mkdir(exist_ok=True)
+                # Create a default configuration
+                default_mv_files_config = {
+                    "paths": {
+                        "source_dir": str(DOWNLOADS_DIR),
+                        "target_dir": str(PROCESSED_DIR)
+                    },
+                    "logging": {
+                        "log_file": "file_utils.log",
+                        "log_level": "INFO"
+                    }
+                }
+                with open(mv_files_config_path, 'w', encoding='utf-8') as f:
+                    json.dump(default_mv_files_config, f, indent=4)
+            
             # Load mv_files configuration and set up its logger
-            mv_files_config_path = PROJECT_ROOT / "project_modules_configs" / "config_file_utils" / "file_utils_config.json"
             mv_files_config = load_mv_files_config(mv_files_config_path)
             mv_files_logger = setup_mv_files_logging(mv_files_config)
             
@@ -146,6 +201,9 @@ def run_end_of_day_task():
     2. Send email with summary
     """
     try:
+        # Ensure the .env file exists before initializing the database
+        ensure_env_file_exists()
+        
         # Step 1: Generate summary
         logger.info("Starting daily summary generation")
         summary_success = summarize_day()
@@ -173,21 +231,33 @@ def run_end_of_day_task():
             if not summary_content:
                 logger.info("No summary found in database, trying to read from file")
                 try:
-                    # Load the summary config to get the file path - use correct file name
-                    summary_config_path = PROJECT_ROOT / "project_modules_configs" / "config_agent_summarize_day" / "agent_summarize_day_config.json"
-                    
-                    if not os.path.exists(summary_config_path):
-                        logger.error(f"Summary config file not found at: {summary_config_path}")
-                        raise FileNotFoundError(f"Summary config file not found at: {summary_config_path}")
+                    # Create local agent_summarize_day config if it doesn't exist
+                    summary_config_path = SCRIPT_DIR / "config" / "agent_summarize_day_config.json"
+                    if not summary_config_path.exists():
+                        # Create default config
+                        default_summary_config = {
+                            "paths": {
+                                "transcriptions_dir": str(TRANSCRIPTIONS_DIR),
+                                "summarized_file": str(SUMMARIES_DIR / "daily_summary.txt")
+                            },
+                            "openai": {
+                                "api_key_env_var": "OPENAI_API_KEY",
+                                "model": "gpt-3.5-turbo"
+                            }
+                        }
+                        # Create directory if needed
+                        summary_config_path.parent.mkdir(exist_ok=True)
+                        with open(summary_config_path, 'w', encoding='utf-8') as f:
+                            json.dump(default_summary_config, f, indent=4)
                     
                     with open(summary_config_path, 'r', encoding='utf-8') as f:
                         summary_config = json.load(f)
                     
-                    # Get the summary file path from the config - this is actually a file path, not a directory
+                    # Get the summary file path from the config
                     summary_file_path = summary_config.get("paths", {}).get("summarized_file")
                     
                     if summary_file_path and os.path.exists(summary_file_path):
-                        # This is a file path, not a directory - read directly from it
+                        # Read directly from the file
                         logger.info(f"Reading summary from file: {summary_file_path}")
                         with open(summary_file_path, 'r', encoding='utf-8') as f:
                             summary_content = f.read()
@@ -201,8 +271,31 @@ def run_end_of_day_task():
             # If we have summary content, update the email config
             if summary_content:
                 try:
+                    # Create or load the email config
+                    email_config_path = SCRIPT_DIR / "config" / "email_config.json"
+                    if not email_config_path.exists():
+                        # Create default email config
+                        default_email_config = {
+                            "email": {
+                                "sender": "your-email@example.com",
+                                "recipient": "your-email@example.com",
+                                "subject": "Voice Diary Daily Summary",
+                                "message": "Your daily voice diary summary will appear here.",
+                                "smtp": {
+                                    "server": "smtp.example.com",
+                                    "port": 587,
+                                    "use_tls": True,
+                                    "username": "your-email@example.com",
+                                    "password_env_var": "EMAIL_PASSWORD"
+                                }
+                            }
+                        }
+                        # Create directory if needed
+                        email_config_path.parent.mkdir(exist_ok=True)
+                        with open(email_config_path, 'w', encoding='utf-8') as f:
+                            json.dump(default_email_config, f, indent=4)
+
                     # Load the email config
-                    email_config_path = PROJECT_ROOT / "project_modules_configs" / "config_send_email" / "email_config.json"
                     with open(email_config_path, 'r', encoding='utf-8') as f:
                         email_config = json.load(f)
                     
@@ -213,7 +306,7 @@ def run_end_of_day_task():
                         
                         # Save the updated config
                         with open(email_config_path, 'w', encoding='utf-8') as f:
-                            json.dump(email_config, f, indent=2)
+                            json.dump(email_config, f, indent=4)
                         
                         logger.info(f"Updated email message with summary content ({len(summary_content)} characters)")
                     else:
@@ -358,8 +451,16 @@ def ensure_env_file_exists():
     This helps ensure the database configuration is properly loaded.
     """
     try:
-        # Get the source .env file path
-        src_env_path = Path(__file__).parent.parent / '.env'
+        # Look for .env file in the voice_diary module directory
+        src_env_path = SCRIPT_DIR / '.env'
+        
+        # If not found, try parent directory
+        if not src_env_path.exists():
+            src_env_path = SCRIPT_DIR.parent / '.env'
+            
+            # If still not found, try one level up
+            if not src_env_path.exists():
+                src_env_path = SCRIPT_DIR.parent.parent / '.env'
         
         if src_env_path.exists():
             # Get the installed package location
@@ -374,103 +475,19 @@ def ensure_env_file_exists():
                 return True
             return True
         else:
-            logger.warning(f".env file not found at {src_env_path}")
-            return False
+            # Create a local .env file with default values
+            env_file = SCRIPT_DIR / '.env'
+            if not env_file.exists():
+                with open(env_file, 'w', encoding='utf-8') as f:
+                    f.write("DATABASE_URL=postgresql://postgres:password@localhost:5432/voice_diary\n")
+                    f.write("OPENAI_API_KEY=your_openai_api_key\n")
+                logger.info(f"Created default .env file at {env_file}")
+            
+            logger.warning(f"No source .env file found, using local default")
+            return True
     except Exception as e:
         logger.error(f"Error ensuring .env file exists: {e}")
         return False
-
-def run_end_of_day_tasks():
-    """Run tasks that should happen at the end of the day"""
-    logger.info("Running end-of-day tasks")
-    
-    try:
-        # Ensure the .env file exists before initializing the database
-        ensure_env_file_exists()
-        
-        # Ensure the database connection is fresh
-        initialize_db()
-        
-        # Get the latest summaries from the database
-        try:
-            summaries = get_latest_day_summaries(limit=1)
-            if summaries:
-                logger.info(f"Retrieved {len(summaries)} day summaries")
-            else:
-                logger.info("No day summaries found in the database")
-        except Exception as e:
-            logger.error(f"Error retrieving summary from database: {e}")
-            logger.error(traceback.format_exc())
-            return
-        
-        # Read the summary config
-        try:
-            summary_config_path = Path(__file__).parent.parent / 'summarize_transcriptions' / 'config.json'
-            if not summary_config_path.exists():
-                logger.error(f"Summary config file not found at: {summary_config_path}")
-                raise FileNotFoundError(f"Summary config file not found at: {summary_config_path}")
-                
-            with open(summary_config_path, 'r') as f:
-                summary_config = json.load(f)
-        except Exception as e:
-            logger.error(f"Error loading summary config: {e}")
-            return
-        
-        # Read the latest summary file
-        try:
-            if summaries:
-                summary = summaries[0]
-                summary_content = summary.get('content', '')
-                logger.info(f"Latest summary content is {len(summary_content)} characters")
-            else:
-                # No summary in DB, try to read from file
-                summary_dir = Path(summary_config.get('summary_output_dir', '.'))
-                latest_summary_files = sorted(summary_dir.glob('*_summary.txt'), key=lambda x: x.stat().st_mtime, reverse=True)
-                
-                if latest_summary_files:
-                    latest_summary_file = latest_summary_files[0]
-                    with open(latest_summary_file, 'r') as f:
-                        summary_content = f.read()
-                    logger.info(f"Read summary from file: {latest_summary_file}")
-                else:
-                    logger.info("No summary files found")
-                    summary_content = "No diary entries for today."
-        except Exception as e:
-            logger.error(f"Error reading summary from file: {e}")
-            logger.error(traceback.format_exc())
-            summary_content = "Error retrieving diary summary."
-        
-        # Update email config with latest summary
-        try:
-            from voice_diary.send_email.send_email import update_email_message
-            
-            # Replace placeholders in the email template
-            today = datetime.now().strftime('%Y-%m-%d')
-            email_data = {
-                'summary': summary_content,
-                'date': today
-            }
-            
-            update_email_message(email_data)
-            logger.info("Updated email template with latest summary")
-        except Exception as e:
-            logger.error(f"Error updating email config: {e}")
-            logger.error(traceback.format_exc())
-        
-        # Send email with summary
-        try:
-            from voice_diary.send_email.send_email import send_voice_diary_email
-            
-            # Send the email
-            send_voice_diary_email()
-            logger.info("Sent daily summary email")
-        except Exception as e:
-            logger.error(f"End of day task failed: {e}")
-            logger.error(traceback.format_exc())
-    
-    except Exception as e:
-        logger.error(f"End-of-day task failed: {e}")
-        logger.error(traceback.format_exc())
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,13 @@
+{
+    "audio_file_types": {
+        "include": [
+            ".mp3",
+            ".wav",
+            ".m4a",
+            ".flac",
+            ".aac",
+            ".ogg",
+            ".wma"
+        ]
+    }
+}

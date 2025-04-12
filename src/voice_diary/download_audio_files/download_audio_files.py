@@ -27,8 +27,8 @@ except ImportError:
 
 # Constants
 # Configurable fallback paths
-DEFAULT_FALLBACK_CONFIG_PATH = "src/voice_diary/project_fallback_config/config_download_audio"
-DEFAULT_FALLBACK_CONFIG_FILENAME = "config_download_audio.json"
+DEFAULT_FALLBACK_CONFIG_PATH = "src/voice_diary/project_fallback_config/config_download_audio_files"
+DEFAULT_FALLBACK_CONFIG_FILENAME = "config_download_audio_files.json"
 # Module-specific values
 MODULE_CREDENTIALS_FILENAME = "credentials.json"
 # Retry configuration
@@ -36,7 +36,7 @@ DEFAULT_MAX_RETRIES = 3
 DEFAULT_RETRY_DELAY = 2  # seconds
 
 # Set up logger
-logger = setup_logger("download_audio")
+logger = setup_logger("download_audio_files")
 
 logger.info(f"SCRIPT_DIR: {SCRIPT_DIR}")
 
@@ -784,7 +784,11 @@ def process_folder(service, folder_id, folder_name, dry_run=False):
             'audio_files': 0
         }
 
-if __name__ == "__main__":
+def main():
+    """
+    Main function to download audio files from Google Drive.
+    This function can be imported and called from other modules.
+    """
     # Get fallback config paths from config if available
     fallback_config_path = DEFAULT_FALLBACK_CONFIG_PATH
     fallback_config_filename = DEFAULT_FALLBACK_CONFIG_FILENAME
@@ -841,6 +845,7 @@ if __name__ == "__main__":
                         process_folder(service, folder_id, folder_name, dry_run=dry_run)
                     
                     logger.info("Google Drive download process completed.")
+                    return True
                 else:
                     logger.error("Failed to authenticate with Google Drive.")
             else:
@@ -852,3 +857,8 @@ if __name__ == "__main__":
         sample_config_path = SCRIPT_DIR / "config" / "config.json"  # Hardcoded directory name and filename
         config = create_sample_config(sample_config_path)
         logger.info("Please review and update the configuration as needed.")
+    
+    return False
+
+if __name__ == "__main__":
+    main()

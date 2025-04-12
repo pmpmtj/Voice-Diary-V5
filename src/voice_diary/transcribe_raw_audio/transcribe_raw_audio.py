@@ -33,28 +33,71 @@ else:
     # Running as script
     SCRIPT_DIR = Path(__file__).parent.absolute()
 
-# Project root for path calculations
-PROJECT_ROOT = SCRIPT_DIR.parent
+# Create directories for application data
+DATA_DIR = SCRIPT_DIR / "data"
+DATA_DIR.mkdir(exist_ok=True)
+
+# Create config directory
+CONFIG_DIR = SCRIPT_DIR / "config"
+CONFIG_DIR.mkdir(exist_ok=True)
 
 # Define log directory
 LOGS_DIR = SCRIPT_DIR / "logs"
-
-# Make sure the log directory exists
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
+
+# Define configuration file paths
+TRANSCRIBE_CONFIG_FILE = CONFIG_DIR / "transcribe_for_diary_config.json"
+OPENAI_CONFIG_FILE = CONFIG_DIR / "openai_transcribe_config.json"
+AUDIO_EXTENSIONS_CONFIG_FILE = CONFIG_DIR / "audio_extensions.json"
+
+# Default configurations
+DEFAULT_TRANSCRIBE_CONFIG = {
+    "paths": {
+        "downloads_dir": str(SCRIPT_DIR.parent / "download_audio_files" / "downloaded"),
+        "output_dir": str(DATA_DIR / "transcriptions")
+    },
+    "transcription": {
+        "batch_processing": True,
+        "batch_output_file": "batch_transcription.txt",
+        "individual_files": True
+    },
+    "logging": {
+        "level": "INFO",
+        "format": "%(asctime)s - %(levelname)s - %(message)s",
+        "log_file": "transcribe_audio_for_diary.log",
+        "max_size_bytes": 1048576,
+        "backup_count": 3
+    }
+}
+
+DEFAULT_OPENAI_CONFIG = {
+    "transcription": {
+        "model": "whisper-1",
+        "language": "en",
+        "prompt": "This is a voice diary entry. The speaker is talking about their day, thoughts, or feelings.",
+        "temperature": 0.0,
+        "response_format": "text"
+    }
+}
+
+DEFAULT_AUDIO_EXTENSIONS = {
+    "audio_file_types": {
+        "include": [".mp3", ".wav", ".m4a", ".flac", ".aac", ".ogg", ".wma"]
+    }
+}
 
 # Load config function so we can get logging config
 def load_config():
-    """Load configuration from transcribe_config.json."""
+    """Load configuration from transcribe_config.json or create default if not exists."""
     try:
-        # Use default config path
-        config_path = PROJECT_ROOT / "project_fallback_config" / "config_transcribe_raw_audio" / "transcribe_for_diary_config.json"
+        if not TRANSCRIBE_CONFIG_FILE.exists():
+            # Create default config
+            os.makedirs(CONFIG_DIR, exist_ok=True)
+            with open(TRANSCRIBE_CONFIG_FILE, 'w') as f:
+                json.dump(DEFAULT_TRANSCRIBE_CONFIG, f, indent=4)
+            print(f"Created default configuration at {TRANSCRIBE_CONFIG_FILE}")
             
-        if not config_path.exists():
-            # Can't use logger here as it's not created yet
-            print(f"Error: Configuration file not found at {config_path}")
-            sys.exit(1)
-            
-        with open(config_path, 'r') as f:
+        with open(TRANSCRIBE_CONFIG_FILE, 'r') as f:
             config = json.load(f)
 
         return config
@@ -66,17 +109,16 @@ def load_config():
 
 # Load OpenAI transcription config
 def load_openai_config():
-    """Load OpenAI transcription configuration."""
+    """Load OpenAI transcription configuration or create default if not exists."""
     try:
-        # Use default config path
-        config_path = PROJECT_ROOT / "project_fallback_config" / "config_transcribe_raw_audio" / "openai_transcribe_config.json"
+        if not OPENAI_CONFIG_FILE.exists():
+            # Create default config
+            os.makedirs(CONFIG_DIR, exist_ok=True)
+            with open(OPENAI_CONFIG_FILE, 'w') as f:
+                json.dump(DEFAULT_OPENAI_CONFIG, f, indent=4)
+            print(f"Created default OpenAI configuration at {OPENAI_CONFIG_FILE}")
             
-        if not config_path.exists():
-            # Can't use logger here as it's not created yet
-            print(f"Error: OpenAI configuration file not found at {config_path}")
-            sys.exit(1)
-            
-        with open(config_path, 'r') as f:
+        with open(OPENAI_CONFIG_FILE, 'r') as f:
             config = json.load(f)
 
         return config
@@ -86,15 +128,36 @@ def load_openai_config():
         traceback.print_exc()
         sys.exit(1)
 
+# Load audio extensions config
+def load_audio_extensions_config():
+    """Load audio extensions configuration or create default if not exists."""
+    try:
+        if not AUDIO_EXTENSIONS_CONFIG_FILE.exists():
+            # Create default config
+            os.makedirs(CONFIG_DIR, exist_ok=True)
+            with open(AUDIO_EXTENSIONS_CONFIG_FILE, 'w') as f:
+                json.dump(DEFAULT_AUDIO_EXTENSIONS, f, indent=4)
+            print(f"Created default audio extensions configuration at {AUDIO_EXTENSIONS_CONFIG_FILE}")
+            
+        with open(AUDIO_EXTENSIONS_CONFIG_FILE, 'r') as f:
+            config = json.load(f)
+
+        return config
+    except Exception as e:
+        print(f"Error loading audio extensions configuration: {str(e)}")
+        traceback.print_exc()
+        return DEFAULT_AUDIO_EXTENSIONS
+
 # Load configuration
 config = load_config()
 openai_config = load_openai_config()
+audio_extensions_config = load_audio_extensions_config()
 
 # Configure logging
 logging_config = config.get("logging", {})
 log_level = getattr(logging, logging_config.get("level", "INFO"))
 log_format = logging_config.get("format", "%(asctime)s - %(levelname)s - %(message)s")
-log_file = logging_config.get("log_file", "transcribe_raw_audio.log")
+log_file = logging_config.get("log_file", "transcribe_audio_for_diary.log")
 max_size = logging_config.get("max_size_bytes", 1048576)
 backup_count = logging_config.get("backup_count", 3)
 
@@ -142,54 +205,45 @@ def get_openai_client():
         sys.exit(1)
 
 
-def get_audio_extensions_from_gdrive_config():
-    """Get audio file extensions from Google Drive config."""
+def get_audio_extensions():
+    """Get audio file extensions from configuration."""
     try:
-        # Load Google Drive configuration
-        gdrive_config_path = PROJECT_ROOT / "project_fallback_config" / "config_download_audio" / "config_download_audio.json"
-        
-        if not gdrive_config_path.exists():
-            logger.error(f"Google Drive configuration file not found at {gdrive_config_path}")
-            return None
-            
-        with open(gdrive_config_path, 'r') as f:
-            gdrive_config = json.load(f)
-            
         # Get audio file extensions
-        audio_extensions = gdrive_config.get("audio_file_types", {}).get("include", [])
+        audio_extensions = audio_extensions_config.get("audio_file_types", {}).get("include", [])
         
         if not audio_extensions:
-            logger.warning("No audio file extensions found in Google Drive config")
+            logger.warning("No audio file extensions found in config, using defaults")
+            audio_extensions = DEFAULT_AUDIO_EXTENSIONS["audio_file_types"]["include"]
             
         return audio_extensions
     except Exception as e:
-        logger.error(f"Error getting audio extensions from Google Drive config: {str(e)}")
-        return None
+        logger.error(f"Error getting audio extensions: {str(e)}")
+        return DEFAULT_AUDIO_EXTENSIONS["audio_file_types"]["include"]
 
 
-def get_downloads_dir_from_gdrive_config():
-    """Get downloads directory from Google Drive config."""
+def get_downloads_dir():
+    """Get downloads directory from configuration."""
     try:
-        # Load Google Drive configuration
-        gdrive_config_path = PROJECT_ROOT / "download_audio_files" / "config" / "config.json"
-        
-        if not gdrive_config_path.exists():
-            logger.error(f"Google Drive configuration file not found at {gdrive_config_path}")
-            return None
-            
-        with open(gdrive_config_path, 'r') as f:
-            gdrive_config = json.load(f)
-            
-        # Get downloads directory
-        downloads_dir = gdrive_config.get("downloads_path", {}).get("downloads_dir")
+        # Get downloads directory from config
+        downloads_dir = config.get("paths", {}).get("downloads_dir")
         
         if not downloads_dir:
-            logger.warning("Downloads directory not found in Google Drive config")
+            # Fallback to default location
+            downloads_dir = str(SCRIPT_DIR.parent / "download_audio_files" / "downloaded")
+            logger.warning(f"Downloads directory not specified in config, using default: {downloads_dir}")
+            
+        # Ensure the path exists
+        downloads_path = Path(downloads_dir)
+        if not downloads_path.exists():
+            logger.warning(f"Downloads directory {downloads_dir} not found, creating it")
+            downloads_path.mkdir(parents=True, exist_ok=True)
             
         return downloads_dir
     except Exception as e:
-        logger.error(f"Error getting downloads directory from Google Drive config: {str(e)}")
-        return None
+        logger.error(f"Error getting downloads directory: {str(e)}")
+        # Return a default path
+        default_path = str(SCRIPT_DIR.parent / "download_audio_files" / "downloaded")
+        return default_path
 
 
 def calculate_duration(file_path):
@@ -351,7 +405,7 @@ def get_audio_files(directory):
         return []
         
     # Get audio extensions from Google Drive config
-    audio_extensions = get_audio_extensions_from_gdrive_config()
+    audio_extensions = get_audio_extensions()
     
     if not audio_extensions:
         logger.error("Could not load audio extensions from config")
@@ -426,7 +480,7 @@ def save_transcription(text, output_path, file_name):
         return False
 
 
-def process_audio_files(client, audio_files, output_path, output_file):
+def process_audio_files(client, audio_files, output_path, batch_output_path):
     """Process all audio files and save their transcriptions."""
     if not audio_files:
         logger.warning("No audio files found")
@@ -471,112 +525,154 @@ def process_audio_files(client, audio_files, output_path, output_file):
     # Combine all transcriptions and save them
     if all_transcriptions:
         combined_text = "\n".join(all_transcriptions)
-        save_transcription(combined_text, output_path, output_file)
-        return True
+        if batch_output_path:
+            save_transcription(combined_text, output_path, batch_output_path.name)
+        return {"successful": len(all_transcriptions), "failed": 0}
     
-    return False
+    return {"successful": 0, "failed": 0}
 
 
 def ensure_env_file_exists():
     """
-    Ensure the .env file exists in both the source directory and the installed package location.
-    This helps ensure the database configuration is properly loaded.
+    Ensure the .env file exists for database configuration.
+    This function looks for a .env file in several locations and copies it to
+    the appropriate locations if needed.
     """
     try:
-        # Get the source .env file path
-        src_env_path = Path(__file__).parent.parent / '.env'
+        # Look for .env file in the current directory
+        local_env_path = SCRIPT_DIR / '.env'
         
-        if src_env_path.exists():
-            # Get the installed package location
-            import importlib.resources
-            pkg_path = importlib.resources.files('voice_diary')
-            pkg_env_path = pkg_path / '.env'
+        # If not found, try parent directory
+        if not local_env_path.exists():
+            local_env_path = SCRIPT_DIR.parent / '.env'
             
-            # Copy the .env file to the package location if it exists
-            if not pkg_env_path.exists() or (src_env_path.read_text() != pkg_env_path.read_text()):
-                logger.info(f"Copying .env file from {src_env_path} to {pkg_env_path}")
-                shutil.copy2(src_env_path, pkg_env_path)
-                return True
+            # If still not found, try one level up
+            if not local_env_path.exists():
+                local_env_path = SCRIPT_DIR.parent.parent / '.env'
+        
+        if local_env_path.exists():
+            logger.info(f"Found .env file at {local_env_path}")
+            
+            # Try to copy to package resources if possible
+            try:
+                import importlib.resources
+                pkg_path = importlib.resources.files('voice_diary')
+                pkg_env_path = pkg_path / '.env'
+                
+                if not pkg_env_path.exists() or (local_env_path.read_text() != pkg_env_path.read_text()):
+                    shutil.copy2(local_env_path, pkg_env_path)
+                    logger.info(f"Copied .env file to package resource location: {pkg_env_path}")
+            except Exception as e:
+                logger.warning(f"Could not copy .env file to package resources: {e}")
+                
             return True
         else:
-            logger.warning(f".env file not found at {src_env_path}")
-            return False
+            # Create a default .env file
+            default_env_path = SCRIPT_DIR / '.env'
+            with open(default_env_path, 'w', encoding='utf-8') as f:
+                f.write("DATABASE_URL=postgresql://postgres:password@localhost:5432/voice_diary\n")
+                f.write("OPENAI_API_KEY=your_openai_api_key\n")
+            
+            logger.warning(f"Created default .env file at {default_env_path}")
+            logger.warning("Please update the default .env file with your actual credentials")
+            
+            return True
     except Exception as e:
         logger.error(f"Error ensuring .env file exists: {e}")
         return False
 
 
 def run_transcribe():
-    """Main function to run the transcription process."""
+    """Run the transcription process."""
     try:
-        # Configuration is already loaded at module level
-        
-        # Ensure .env file exists before initializing the database
+        # Ensure the .env file exists
         ensure_env_file_exists()
         
-        # Initialize database connection
+        # Initialize the database
         logger.info("Initializing database connection for transcription")
         db_init_success = initialize_db()
-        if not db_init_success:
-            logger.error("Failed to initialize database connection for transcription")
-        else:
+        if db_init_success:
             logger.info("Database initialization successful for transcription")
+        else:
+            logger.error("Failed to initialize database connection for transcription")
         
-        # Get downloads directory from Google Drive config
-        gdrive_downloads_dir = get_downloads_dir_from_gdrive_config()
+        # Get audio extensions from config
+        audio_extensions = get_audio_extensions()
         
-        if not gdrive_downloads_dir:
-            logger.error("Downloads directory not found in Google Drive config")
-            sys.exit(1)
-            
-        downloads_dir = Path(gdrive_downloads_dir)
+        if not audio_extensions:
+            logger.error("Could not load audio extensions from config")
+            audio_extensions = [".mp3", ".wav", ".m4a", ".flac", ".aac", ".ogg", ".wma"]
+            logger.info(f"Using default audio extensions: {audio_extensions}")
         
-        if not downloads_dir.exists():
-            logger.error(f"Downloads directory {downloads_dir} does not exist")
-            sys.exit(1)
-        
-        # Log the downloads directory being used
-        logger.info(f"Using downloads directory: {downloads_dir}")
-        
-        # Get output file name
-        if "output_file" not in config:
-            logger.error("output_file not found in configuration")
-            sys.exit(1)
-        output_file = config["output_file"]
-        
-        # Get output directory from config
-        if "transcriptions_dir" not in config:
-            logger.error("transcriptions_dir not found in configuration")
-            sys.exit(1)
-        output_dir = Path(config["transcriptions_dir"])
-        
-        # Create transcriptions output directory if it doesn't exist
-        if not output_dir.exists():
-            logger.info(f"Creating output directory: {output_dir}")
-            output_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Log the output directory being used
-        logger.info(f"Using output directory: {output_dir}")
-        
-        # Get OpenAI client
+        # Initialize OpenAI client
         client = get_openai_client()
         
-        # Get audio files in chronological order
-        audio_files = get_audio_files(downloads_dir)
+        # Get downloads and output paths
+        # Try to get downloads directory from config first
+        downloads_dir = get_downloads_dir()
         
+        if not downloads_dir:
+            logger.error("Could not determine downloads directory")
+            return False
+        
+        # Get output directory from config
+        output_dir = config.get("paths", {}).get("output_dir")
+        if not output_dir:
+            # Create default output directory in data folder
+            output_dir = str(DATA_DIR / "transcriptions")
+            logger.info(f"Output directory not specified in config, using default: {output_dir}")
+        
+        logger.info(f"Using downloads directory: {downloads_dir}")
+        logger.info(f"Using output directory: {output_dir}")
+        
+        # Create paths if they don't exist
+        downloads_path = Path(downloads_dir)
+        output_path = Path(output_dir)
+        
+        if not downloads_path.exists():
+            os.makedirs(downloads_path, exist_ok=True)
+            logger.info(f"Created downloads directory: {downloads_path}")
+        
+        if not output_path.exists():
+            os.makedirs(output_path, exist_ok=True)
+            logger.info(f"Created output directory: {output_path}")
+        
+        # Get list of audio files from downloads directory
+        audio_files = get_audio_files(downloads_path)
+        
+        if not audio_files:
+            logger.info("No audio files found in downloads directory")
+            return True
+
         # Process audio files
-        success = process_audio_files(client, audio_files, output_dir, output_file)
+        batch_processing = config.get("transcription", {}).get("batch_processing", True)
+        individual_files = config.get("transcription", {}).get("individual_files", True)
+        batch_output_file = config.get("transcription", {}).get("batch_output_file", "batch_transcription.txt")
         
-        if success:
-            logger.info("Transcription process completed successfully")
+        # If batch processing is enabled, create a batch transcription file
+        if batch_processing:
+            batch_output_path = output_path / batch_output_file
+            logger.info(f"Batch processing enabled, will save to: {batch_output_path}")
         else:
-            logger.warning("Transcription process completed with warnings")
-            
-        return success
+            batch_output_path = None
+            logger.info("Batch processing disabled")
+        
+        # Process the audio files
+        results = process_audio_files(client, audio_files, output_path, batch_output_path)
+        
+        # Log results
+        total_files = len(audio_files)
+        successful_files = results.get("successful", 0)
+        failed_files = results.get("failed", 0)
+        
+        logger.info(f"Transcription complete: {successful_files} files successful, {failed_files} files failed out of {total_files} files")
+        
+        return True
+        
     except Exception as e:
-        logger.error(f"Error running transcription process: {str(e)}")
-        traceback.print_exc()
-        sys.exit(1)
+        logger.error(f"Error in transcription process: {str(e)}")
+        logger.error(traceback.format_exc())
+        return False
 
 
 def main():

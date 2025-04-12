@@ -19,9 +19,9 @@
         },
         "modules": {
             "_description": "Module-specific logging configurations",
-            "download_audio": {
+            "download_audio_files": {
                 "level": "INFO",
-                "log_filename": "download_audio.log"
+                "log_filename": "download_audio_files.log"
             },
             "transcription": {
                 "level": "INFO",

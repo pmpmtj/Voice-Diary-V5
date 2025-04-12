@@ -11,8 +11,8 @@
       "credentials_file": "credentials.json",
       "token_file": "gdrive_token.pickle",
       "credentials_path": "credentials",
-      "fallback_config_path": "src/voice_diary/project_fallback_config/config_download_audio",
-      "fallback_config_filename": "config_download_audio.json"
+      "fallback_config_path": "src/voice_diary/project_fallback_config/config_download_audio_files",
+      "fallback_config_filename": "config_download_audio_files.json"
   },
   "folders": {
       "_description": "Configuration for Google Drive folders to process",

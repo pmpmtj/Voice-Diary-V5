@@ -1,0 +1,10 @@
+{
+    "paths": {
+        "source_dir": "C:\\Users\\pmpmt\\Scripts_Cursor\\250411-Voice-Diary-V5\\Voice-Diary-V5\\src\\voice_diary\\app_scheduler\\data\\downloaded",
+        "target_dir": "C:\\Users\\pmpmt\\Scripts_Cursor\\250411-Voice-Diary-V5\\Voice-Diary-V5\\src\\voice_diary\\app_scheduler\\data\\processed"
+    },
+    "logging": {
+        "log_file": "file_utils.log",
+        "log_level": "INFO"
+    }
+}
