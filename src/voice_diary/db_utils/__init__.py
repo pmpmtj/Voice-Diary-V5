@@ -1,1 +1,1 @@
-
+"""Voice Diary module"""
