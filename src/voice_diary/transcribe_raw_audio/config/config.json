@@ -1,5 +1,5 @@
 {
-    "transcriptions_dir": "C:/Users/pmpmt/voice_diary_app/transcriptions",
+    "transcriptions_dir": "transcriptions",
     "output_file": "diary_transcription.txt",
     "models": {
         "whisper-1": {

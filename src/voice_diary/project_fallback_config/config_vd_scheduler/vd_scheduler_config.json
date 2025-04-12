@@ -2,6 +2,6 @@
     "scheduler": {
       "runs_per_day": 8,
       "daily_task_hour": 17,
-      "daily_task_minute": 6
+      "daily_task_minute": 4
     }
 }

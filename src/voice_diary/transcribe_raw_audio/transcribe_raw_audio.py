@@ -203,6 +203,12 @@ def get_openai_client():
             logger.error("OPENAI_API_KEY environment variable not set")
             logger.error("Please set the OPENAI_API_KEY environment variable with your OpenAI API key")
             return None
+        
+        # Log key validation (first 4 chars only for security)
+        if len(api_key) > 4:
+            logger.info(f"API key found starting with: {api_key[:4]}***")
+        else:
+            logger.info("API key found but is too short")
             
         # Create OpenAI client
         client = OpenAI(api_key=api_key)
@@ -510,8 +516,12 @@ def save_transcription(text, output_path, file_name):
         return False
         
     try:
+        # Convert the output_path to an absolute path if it's relative
         output_path = Path(output_path)
-        
+        if not output_path.is_absolute():
+            # If path is relative, make it relative to the module directory
+            output_path = MODULE_DIR / output_path
+            
         # Create output directory if it doesn't exist
         if not output_path.exists():
             logger.info(f"Creating output directory: {output_path}")
@@ -566,17 +576,23 @@ def process_files(client, files, output_path, batch_output_path, config):
             if DB_UTILS_AVAILABLE:
                 duration = calculate_duration(file_path)
                 try:
-                    db_success = db_save_transcription(
-                        content=transcription,
-                        filename=file_path.name, 
-                        audio_path=str(file_path),
-                        duration_seconds=duration,
-                        metadata={"transcribed_at": datetime.datetime.now().isoformat()}
-                    )
-                    if db_success:
-                        logger.info(f"Successfully saved transcription to database for {file_path.name}")
+                    logger.info(f"Attempting to save transcription to database for {file_path.name}")
+                    logger.info(f"Transcription length: {len(transcription)} characters")
+                    # Ensure initialize_db is called before saving
+                    if initialize_db():
+                        db_success = db_save_transcription(
+                            content=transcription,
+                            filename=file_path.name, 
+                            audio_path=str(file_path),
+                            duration_seconds=duration,
+                            metadata={"transcribed_at": datetime.datetime.now().isoformat()}
+                        )
+                        if db_success:
+                            logger.info(f"Successfully saved transcription to database for {file_path.name}")
+                        else:
+                            logger.error(f"Failed to save transcription to database for {file_path.name}")
                     else:
-                        logger.error(f"Failed to save transcription to database for {file_path.name}")
+                        logger.error("Database initialization failed, cannot save transcription")
                 except Exception as e:
                     logger.error(f"Exception while saving transcription to database: {str(e)}")
                     logger.error(traceback.format_exc())
@@ -587,6 +603,16 @@ def process_files(client, files, output_path, batch_output_path, config):
             file_name = file_path.name
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             formatted_transcription = f"File: {file_name}\nTimestamp: {timestamp}\n\n{transcription}\n\n"
+            
+            # Save individual transcription file
+            individual_saved = save_transcription(
+                transcription, 
+                output_path, 
+                f"individual_{file_name}.txt"
+            )
+            
+            if individual_saved:
+                logger.info(f"Individual transcription saved for {file_name}")
             
             all_transcriptions.append(formatted_transcription)
         else:
