@@ -23,7 +23,7 @@
                 "level": "INFO",
                 "log_filename": "download_audio_files.log"
             },
-            "transcription": {
+            "transcribe_raw_audio": {
                 "level": "INFO",
                 "log_filename": "transcription.log"
             },
