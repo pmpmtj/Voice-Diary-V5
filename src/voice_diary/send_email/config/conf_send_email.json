@@ -19,7 +19,7 @@
   "email": {
     "to": "pmpmtj@hotmail.com",
     "subject": "Voice Diary Notification",
-    "message": "Voice Diary Summary for 2025-04-12:\n\n=== Diary Summary: 2025-04-12 ===\n\n**Date: April 12, 2025**  \n**Theme: Embracing Family Moments**\n\nToday\u2019s entries are a heartwarming testament to the joy of spending time with family, as you repeatedly note having breakfast with your nieces. Each entry emphasizes that while you are only enjoying coffee, the significance of these gatherings goes far beyond the meal itself.\n\nThe consistent reflections throughout the day illustrate the importance of these interactions, highlighting how even casual moments can strengthen family bonds and create lasting memories. This day is marked by a sense of appreciation and connection with your loved ones, underscoring that simple pleasures often hold the most value in our lives. Overall, your entries reveal a deep appreciation for the comfort and joy found in togetherness.",
+    "message": "Test Message",
     "default_message": "=== THIS IS A TEST MESSAGE ==="
   },
   "logging": {
