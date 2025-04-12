@@ -354,9 +354,20 @@ def end_of_day_scheduler(config):
     hour = config.get("scheduler", {}).get("daily_task_hour", 23)
     minute = config.get("scheduler", {}).get("daily_task_minute", 55)
     
+    # Add debug logging to verify the configured time
+    logger.info(f"End-of-day scheduler initialized with configured time: {hour:02d}:{minute:02d}")
+    
     while True:
         sleep_time = get_seconds_until_target_time(hour, minute)
         logger.info(f"Next end-of-day task scheduled in {sleep_time:.0f} seconds (at {hour:02d}:{minute:02d}).")
+        
+        # Debug logging before sleep
+        now = datetime.now()
+        target_time = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        if now >= target_time:
+            target_time = target_time + timedelta(days=1)
+        logger.info(f"Current time: {now.strftime('%Y-%m-%d %H:%M:%S')}, Target time: {target_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        
         time.sleep(sleep_time)
         
         logger.info("Starting end-of-day task")
@@ -400,6 +411,17 @@ def ensure_env_file_exists():
         logger.error(f"Error ensuring .env file exists: {e}")
         return False
 
+# Helper function to handle exceptions in threads
+def try_with_logging(func, args=(), kwargs=None, error_message="Thread error"):
+    """Execute a function with exception handling and logging"""
+    if kwargs is None:
+        kwargs = {}
+    try:
+        func(*args, **kwargs)
+    except Exception as e:
+        logger.error(f"{error_message}: {e}")
+        logger.error(traceback.format_exc())
+
 # === Main Scheduler ===
 def main():
     try:
@@ -415,7 +437,17 @@ def main():
         interval = calculate_interval_seconds(config["scheduler"]["runs_per_day"])
 
         # Start end-of-day scheduler in parallel thread
-        end_of_day_thread = threading.Thread(target=end_of_day_scheduler, args=(config,), daemon=True)
+        # Using a daemon thread with higher priority and explicitly handling exceptions
+        end_of_day_thread = threading.Thread(
+            target=lambda: 
+                try_with_logging(
+                    end_of_day_scheduler,
+                    args=(config,),
+                    error_message="End-of-day scheduler thread encountered an error"
+                ),
+            daemon=True,
+            name="EndOfDayScheduler"
+        )
         end_of_day_thread.start()
         
         # Log with the actual configured time

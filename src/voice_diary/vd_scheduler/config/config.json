@@ -2,8 +2,8 @@
   "version": "1.0.0",
   "scheduler": {
     "runs_per_day": 12,
-    "daily_task_hour": 15,
-    "daily_task_minute": 55,
+    "daily_task_hour": 17,
+    "daily_task_minute": 18,
     "description": "Configuration for Voice Diary scheduler"
   },
   "logging": {
