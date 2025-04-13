@@ -128,12 +128,13 @@ def create_sample_config(config_path):
     "transcriptions_dir": "transcriptions",
     "output_file": "diary_transcription.txt",
     "paths": {
-      "downloads_dir": "../download_audio_files/downloaded",
+      "downloads_dir": "downloaded",
       "output_dir": "transcriptions"
     },
     "downloads_path": {
       "_description": "Configuration for download directory location",
-      "downloads_dir": "downloaded"
+      "downloads_dir": "downloaded",
+      "download_path_description": "The path is resolved relative to the module directory. Use a full path for absolute locations or a relative path (e.g., 'downloaded' or '../downloaded')"
     },
     "models": {
       "whisper-1": {
@@ -295,26 +296,37 @@ def get_downloads_dir(config):
                                 download_config = json.load(f)
                                 downloads_dir = download_config.get("downloads_path", {}).get("downloads_dir")
                                 if downloads_dir:
-                                    # Make it relative to the download_audio_files module
-                                    downloads_dir = str(download_audio_module_path / downloads_dir)
+                                    # Make it absolute path relative to the download_audio_files module
+                                    if downloads_dir.startswith("../") or downloads_dir.startswith("..\\"):
+                                        downloads_dir = str((download_audio_module_path / downloads_dir).resolve())
+                                    else:
+                                        downloads_dir = str((download_audio_module_path / downloads_dir).resolve())
                                     logger.info(f"Using downloads directory from download_audio_files config: {downloads_dir}")
                     except Exception as e:
                         logger.warning(f"Error loading download_audio_files config: {str(e)}")
                     
                     # If still not found, use the default
                     if not downloads_dir:
-                        downloads_dir = str(download_audio_module_path / "downloaded")
+                        downloads_dir = str((download_audio_module_path / "downloaded").resolve())
                         logger.info(f"Using downloads directory from download_audio_files module path: {downloads_dir}")
                 else:
                     # Fallback to default location
-                    downloads_dir = str(MODULE_DIR.parent / "downloaded")
+                    downloads_dir = str((MODULE_DIR.parent / "downloaded").resolve())
                     logger.warning(f"Downloads directory not specified in config, using default: {downloads_dir}")
             except Exception as e:
                 logger.warning(f"Error finding download_audio_files module: {str(e)}")
                 # Fallback to default location
-                downloads_dir = str(MODULE_DIR.parent / "downloaded")
+                downloads_dir = str((MODULE_DIR.parent / "downloaded").resolve())
                 logger.warning(f"Downloads directory not specified in config, using default: {downloads_dir}")
-            
+        else:
+            # If the path is relative, resolve it relative to current module
+            if not os.path.isabs(downloads_dir):
+                # Check if it's a path relative to a parent directory
+                if downloads_dir.startswith("../") or downloads_dir.startswith("..\\"):
+                    downloads_dir = str((MODULE_DIR / downloads_dir).resolve())
+                else:
+                    downloads_dir = str((MODULE_DIR / downloads_dir).resolve())
+                    
         # Ensure the path exists
         downloads_path = Path(downloads_dir)
         if not downloads_path.exists():
@@ -325,7 +337,7 @@ def get_downloads_dir(config):
     except Exception as e:
         logger.error(f"Error getting downloads directory: {str(e)}")
         # Return a default path
-        default_path = str(MODULE_DIR.parent / "downloaded")
+        default_path = str((MODULE_DIR.parent / "downloaded").resolve())
         return default_path
 
 def get_transcription_model(config):

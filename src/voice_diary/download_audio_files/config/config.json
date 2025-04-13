@@ -46,6 +46,7 @@
     },
     "downloads_path": {
         "_description": "Configuration for download directory location",
-        "downloads_dir": "downloaded"
+        "downloads_dir": "downloaded",
+        "download_path_description": "The path is resolved relative to the module directory. Use a full path for absolute locations or a relative path (e.g., 'downloaded' or '../downloaded')"
     }
 }

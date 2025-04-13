@@ -542,7 +542,14 @@ def download_file(service, file_id, file_name=None, download_dir=None):
             if download_dir:
                 download_dir_path = Path(download_dir)
             else:
-                download_dir_path = Path(config['downloads_path']['downloads_dir'])
+                downloads_dir = config['downloads_path']['downloads_dir']
+                
+                # If it's a relative path starting with "../", resolve it relative to MODULE_DIR
+                if downloads_dir.startswith("../") or downloads_dir.startswith("..\\"):
+                    download_dir_path = (MODULE_DIR / downloads_dir).resolve()
+                else:
+                    # Otherwise, use the path directly but resolve it relative to MODULE_DIR
+                    download_dir_path = (MODULE_DIR / downloads_dir).resolve()
             
             # Ensure download directory exists
             ensure_directory_exists(download_dir_path, "download directory")
@@ -697,7 +704,17 @@ def process_folder(service, folder_id, folder_name, dry_run=False):
         }
         
         # Setup download directory
-        base_download_dir = Path(config['downloads_path']['downloads_dir'])
+        downloads_dir = config['downloads_path']['downloads_dir']
+        
+        # If it's a relative path starting with "../", resolve it relative to MODULE_DIR
+        if downloads_dir.startswith("../") or downloads_dir.startswith("..\\"):
+            base_download_dir = (MODULE_DIR / downloads_dir).resolve()
+        else:
+            # Otherwise, use the path directly but resolve it relative to MODULE_DIR
+            base_download_dir = (MODULE_DIR / downloads_dir).resolve()
+            
+        # Ensure the directory exists
+        ensure_directory_exists(base_download_dir, "download directory")
         
         # Process each audio file - only download audio files but count all files
         for item in audio_items:
