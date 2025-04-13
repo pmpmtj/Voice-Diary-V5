@@ -125,51 +125,42 @@ def create_sample_config(config_path):
     # Generate a default config template with boolean values as strings
     default_config = {
     "version": "1.0.0",
-    "transcriptions_dir": "transcriptions",
+        "transcriptions_dir": "transcriptions",
     "output_file": "diary_transcription.txt",
-    "paths": {
-      "downloads_dir": "downloaded",
-      "output_dir": "transcriptions"
-    },
-    "downloads_path": {
-      "_description": "Configuration for download directory location",
-      "downloads_dir": "downloaded",
-      "download_path_description": "The path is resolved relative to the module directory. Use a full path for absolute locations or a relative path (e.g., 'downloaded' or '../downloaded')"
-    },
     "models": {
-      "whisper-1": {
-        "enabled": "true",
-        "description": "Original Whisper model, good general-purpose speech to text",
-        "prompt": "Transcribe the given audio into english.",
-        "supports_language_parameter": "true"
-      },
-      "gpt-4o-transcribe": {
-        "enabled": "false",
-        "description": "Advanced model with better accuracy but higher cost",
-        "prompt": "Transcribe the given audio into english.",
-        "supports_language_parameter": "false"
-      },
-      "gpt-4o-mini-transcribe": {
-        "enabled": "false",
-        "description": "Smaller model with good performance for shorter audio",
-        "prompt": "Transcribe the given audio into english.",
-        "supports_language_parameter": "false"
-      }
+        "whisper-1": {
+            "enabled": "true",
+            "description": "Original Whisper model, good general-purpose speech to text",
+            "prompt": "Transcribe the given audio into english.",
+            "supports_language_parameter": "true"
+        },
+        "gpt-4o-transcribe": {
+            "enabled": "false",
+            "description": "Advanced model with better accuracy but higher cost",
+            "prompt": "Transcribe the given audio into english.",
+            "supports_language_parameter": "false"
+        },
+        "gpt-4o-mini-transcribe": {
+            "enabled": "false",
+            "description": "Smaller model with good performance for shorter audio",
+            "prompt": "Transcribe the given audio into english.",
+            "supports_language_parameter": "false"
+        }
     },
     "default_model": "whisper-1",
     "settings": {
-      "language": "en",
-      "prompt": "Transcribe the given audio into english.",
-      "response_format": "json"
+        "language": "en",
+        "prompt": "Transcribe the given audio into english.",
+        "response_format": "json"
     },
     "cost_management": {
-      "max_audio_duration_seconds": 300,
-      "warn_on_large_files": "true"
+        "max_audio_duration_seconds": 300,
+        "warn_on_large_files": "true"
     },
     "transcription": {
-      "batch_processing": "true",
-      "individual_files": "false",
-      "batch_output_file": "batch_transcription.txt"
+        "batch_processing": "true",
+        "individual_files": "false",
+        "batch_output_file": "batch_transcription.txt"
     }
   }
     

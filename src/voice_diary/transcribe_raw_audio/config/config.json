@@ -34,6 +34,6 @@
     "transcription": {
         "batch_processing": true,
         "individual_files": false,
-        "batch_output_file": "diary_transcription.txt"
+        "batch_output_file": "batch_transcription.txt"
     }
 }
