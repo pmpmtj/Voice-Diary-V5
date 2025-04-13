@@ -30,5 +30,10 @@
     "cost_management": {
         "max_audio_duration_seconds": 300,
         "warn_on_large_files": true
+    },
+    "transcription": {
+        "batch_processing": true,
+        "individual_files": false,
+        "batch_output_file": "diary_transcription.txt"
     }
 }

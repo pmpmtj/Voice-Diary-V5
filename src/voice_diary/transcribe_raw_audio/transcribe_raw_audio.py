@@ -168,7 +168,7 @@ def create_sample_config(config_path):
     },
     "transcription": {
       "batch_processing": "true",
-      "individual_files": "true",
+      "individual_files": "false",
       "batch_output_file": "batch_transcription.txt"
     }
   }
@@ -601,6 +601,9 @@ def process_files(client, files, output_path, batch_output_path, config):
     all_transcriptions = []
     failed_count = 0
     
+    # Check configuration settings for saving individual files
+    save_individual_files = config.get("transcription", {}).get("individual_files", True)
+    
     for file_path in files:
         logger.info(f"Processing {file_path}")
         
@@ -640,24 +643,26 @@ def process_files(client, files, output_path, batch_output_path, config):
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             formatted_transcription = f"File: {file_name}\nTimestamp: {timestamp}\n\n{transcription}\n\n"
             
-            # Save individual transcription file
-            individual_saved = save_transcription(
-                transcription, 
-                output_path, 
-                f"individual_{file_name}.txt"
-            )
-            
-            if individual_saved:
-                logger.info(f"Individual transcription saved for {file_name}")
+            # Save individual transcription file ONLY if enabled in config
+            if save_individual_files:
+                individual_saved = save_transcription(
+                    transcription, 
+                    output_path, 
+                    f"individual_{file_name}.txt"
+                )
+                
+                if individual_saved:
+                    logger.info(f"Individual transcription saved for {file_name}")
             
             all_transcriptions.append(formatted_transcription)
         else:
             failed_count += 1
     
-    # Combine all transcriptions and save them
+    # Combine all transcriptions and save them if batch processing is enabled
     if all_transcriptions:
         combined_text = "\n".join(all_transcriptions)
-        if batch_output_path:
+        batch_processing = config.get("transcription", {}).get("batch_processing", True)
+        if batch_output_path and batch_processing:
             save_transcription(combined_text, output_path, batch_output_path.name)
         return {"successful": len(all_transcriptions), "failed": failed_count, "total": len(files)}
     
@@ -745,6 +750,12 @@ def run_transcribe(config=None):
         
         # Get output directory from config
         output_dir = config.get("transcriptions_dir", "transcriptions")
+        
+        # Log transcription mode settings
+        save_individual_files = config.get("transcription", {}).get("individual_files", True)
+        batch_processing = config.get("transcription", {}).get("batch_processing", True)
+        logger.info(f"Transcription mode - Individual files: {'Enabled' if save_individual_files else 'Disabled'}, " 
+                    f"Batch processing: {'Enabled' if batch_processing else 'Disabled'}")
         
         logger.info(f"Using downloads directory: {downloads_dir}")
         logger.info(f"Using output directory: {output_dir}")
