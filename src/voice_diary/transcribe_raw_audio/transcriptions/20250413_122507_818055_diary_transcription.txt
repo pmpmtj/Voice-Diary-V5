@@ -1,5 +1,0 @@
-File: 20250413_122143_686000_The Momo Station (1).m4a
-Timestamp: 2025-04-13 12:25:07
-
-This is the second message of the second round. I want to see if the script does batch processing. So it's going to find three files there and it has to process all of them.
-
