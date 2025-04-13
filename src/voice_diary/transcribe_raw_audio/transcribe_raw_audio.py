@@ -131,6 +131,10 @@ def create_sample_config(config_path):
       "downloads_dir": "../download_audio_files/downloaded",
       "output_dir": "transcriptions"
     },
+    "downloads_path": {
+      "_description": "Configuration for download directory location",
+      "downloads_dir": "downloaded"
+    },
     "models": {
       "whisper-1": {
         "enabled": "true",
@@ -271,16 +275,36 @@ def get_downloads_dir(config):
         Path to downloads directory
     """
     try:
-        # Get downloads directory from config
-        downloads_dir = config.get("paths", {}).get("downloads_dir")
+        # Check first using the structure in download_audio_files config
+        downloads_dir = config.get("downloads_path", {}).get("downloads_dir")
+        
+        # If not found, try the old path structure
+        if not downloads_dir:
+            downloads_dir = config.get("paths", {}).get("downloads_dir")
         
         if not downloads_dir:
             # Check if we can find it from download_audio_files module
             try:
                 download_audio_module_path = MODULE_DIR.parent / "download_audio_files"
                 if download_audio_module_path.exists():
-                    downloads_dir = str(download_audio_module_path / "downloaded")
-                    logger.info(f"Using downloads directory from download_audio_files module: {downloads_dir}")
+                    # Try to load the download_audio_files config directly
+                    try:
+                        download_config_path = download_audio_module_path / "config" / "config.json"
+                        if download_config_path.exists():
+                            with open(download_config_path, "r", encoding=ENCODING) as f:
+                                download_config = json.load(f)
+                                downloads_dir = download_config.get("downloads_path", {}).get("downloads_dir")
+                                if downloads_dir:
+                                    # Make it relative to the download_audio_files module
+                                    downloads_dir = str(download_audio_module_path / downloads_dir)
+                                    logger.info(f"Using downloads directory from download_audio_files config: {downloads_dir}")
+                    except Exception as e:
+                        logger.warning(f"Error loading download_audio_files config: {str(e)}")
+                    
+                    # If still not found, use the default
+                    if not downloads_dir:
+                        downloads_dir = str(download_audio_module_path / "downloaded")
+                        logger.info(f"Using downloads directory from download_audio_files module path: {downloads_dir}")
                 else:
                     # Fallback to default location
                     downloads_dir = str(MODULE_DIR.parent / "downloaded")

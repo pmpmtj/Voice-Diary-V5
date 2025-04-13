@@ -3,7 +3,7 @@
   "scheduler": {
     "runs_per_day": 12,
     "daily_task_hour": 18,
-    "daily_task_minute": 4,
+    "daily_task_minute": 58,
     "description": "Configuration for Voice Diary scheduler"
   },
   "logging": {
@@ -15,9 +15,5 @@
     "enable_notifications": false,
     "retry_on_failure": true,
     "max_retries": 3
-  },
-  "paths": {
-    "output_directory": "output",
-    "archive_directory": "archive"
   }
 }
