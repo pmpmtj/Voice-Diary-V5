@@ -19,7 +19,7 @@
   "email": {
     "to": "pmpmtj@hotmail.com",
     "subject": "Voice Diary Notification",
-    "message": "Voice Diary Summary for 2025-04-13:\n\n=== Diary Summary: 2025-04-13 ===\n\n### April 13, 2025 - Second Round of Voice Diary Testing\n\nToday, I recorded another test message, marking the beginning of a second round of recordings. This entry serves as the first message in this new phase, indicating my ongoing efforts to refine and utilize this voice diary project. The initiative remains focused on effectively capturing my thoughts and experiences through this medium.",
+    "message": "Voice Diary Summary for 2025-04-13:\n\n=== Diary Summary: 2025-04-13 ===\n\n### April 13, 2025 - Testing Batch Processing in Voice Diary\n\nToday, I focused on testing batch processing capabilities for my voice diary project. I recorded two audio files in succession. The first entry introduces the first audio file aimed at assessing how the system manages multiple files. Shortly after, I recorded the second entry to further evaluate batch processing, confirming my intent to ensure efficient handling of audio recordings. This testing phase is crucial for optimizing my future entries.",
     "default_message": "=== THIS IS A TEST MESSAGE ==="
   },
   "logging": {

@@ -580,23 +580,19 @@ def summarize_day():
         # Create the output path with timestamp prefix
         output_path_with_timestamp = str(Path(output_path).parent / f"{timestamp_prefix}{Path(output_path).name}")
         
+        # Only write the timestamped version
         with open(output_path_with_timestamp, 'w', encoding=ENCODING) as f:
             f.write(final_content)
         
-        # Also write to the original path to maintain existing functionality
-        with open(output_path, 'w', encoding=ENCODING) as f:
-            f.write(final_content)
+        logger.info(f"Successfully wrote summarized content to {output_path_with_timestamp}")
         
-        logger.info(f"Successfully wrote summarized content to {output_path}")
-        logger.info(f"Also wrote timestamped copy to {output_path_with_timestamp}")
-        
-        # Save to database - still using original path to maintain existing functionality
+        # Save to database - using the timestamped path
         logger.info("Saving summary to database")
         db_save_success = save_summary_to_db(
             content=final_content,
             start_date=start_date,
             end_date=end_date,
-            file_path=output_path
+            file_path=output_path_with_timestamp
         )
         
         if not db_save_success:
